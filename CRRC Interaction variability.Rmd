@@ -7,26 +7,26 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, message=F}
 library(dplyr)
 library(psych)
 library(lme4)
 library(ggplot2)
 ```
 
-```{r}
+```{r, message=F}
 load("d.Rdata")
 ```
 
 
 Calculate the total number of interaction partners (morning, evening, day)
-```{r}
+```{r, message=F}
 d <- d %>%
   rowwise() %>% 
   mutate(s.ip_t = sum(s.ip_1, s.ip_2, s.ip_3, s.ip_4, s.ip_5, s.ip_6, s.ip_7, na.rm=T))
 ```
 
-```{r}
+```{r, message=F}
 d %>%
   group_by(day, type) %>%
   summarize(p = mean(s.ip_t, na.rm=T),
@@ -38,7 +38,7 @@ d %>%
 ```
 
 Empty multilevel model to estimate within person variance
-```{r}
+```{r, message=F}
 empty <- lmer(s.ip_t ~ 1 + (1 | team) + (1 | pid), data = d)
 summary(empty)
 ```

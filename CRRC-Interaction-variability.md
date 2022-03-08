@@ -3,36 +3,10 @@ CRRC Interaction variability
 
 ``` r
 library(dplyr)
-```
-
-    ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
-
-``` r
 library(psych)
 library(lme4)
-```
-
-    ## Loading required package: Matrix
-
-``` r
 library(ggplot2)
 ```
-
-    ## 
-    ## Attaching package: 'ggplot2'
-
-    ## The following objects are masked from 'package:psych':
-    ## 
-    ##     %+%, alpha
 
 ``` r
 load("d.Rdata")
@@ -58,19 +32,12 @@ d %>%
   geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
 ```
 
-    ## `summarise()` regrouping output by 'day' (override with `.groups` argument)
-
 ![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 Empty multilevel model to estimate within person variance
 
 ``` r
 empty <- lmer(s.ip_t ~ 1 + (1 | team) + (1 | pid), data = d)
-```
-
-    ## boundary (singular) fit: see ?isSingular
-
-``` r
 summary(empty)
 ```
 
