@@ -1,8 +1,14 @@
-CRRC Interaction variability
+CRRC Interaction Variability
 ================
 
 ``` r
+library(knitr)
 library(dplyr)
+```
+
+    ## Warning: package 'dplyr' was built under R version 4.0.5
+
+``` r
 library(psych)
 library(lme4)
 library(ggplot2)
@@ -11,6 +17,22 @@ library(ggplot2)
 ``` r
 load("d.Rdata")
 ```
+
+Count of team sizes
+
+``` r
+d %>%
+  group_by(team) %>%
+  arrange(desc(pid)) %>%
+  slice(1) %>%
+  ungroup() %>%
+  ggplot(aes(x = team_size)) +
+  geom_histogram()
+```
+
+    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 Calculate the total number of interaction partners
 
@@ -35,7 +57,7 @@ d %>%
   geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
 ```
 
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 #Team member 1
@@ -53,7 +75,7 @@ d %>%
 
     ## Warning: Removed 20 row(s) containing missing values (geom_path).
 
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
 
 ``` r
 #Team member 2
@@ -68,10 +90,9 @@ d %>%
 ```
 
     ## Warning: Removed 20 rows containing missing values (geom_point).
+    ## Removed 20 row(s) containing missing values (geom_path).
 
-    ## Warning: Removed 20 row(s) containing missing values (geom_path).
-
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-3.png)<!-- -->
 
 ``` r
 #Team member 3
@@ -86,10 +107,9 @@ d %>%
 ```
 
     ## Warning: Removed 20 rows containing missing values (geom_point).
+    ## Removed 20 row(s) containing missing values (geom_path).
 
-    ## Warning: Removed 20 row(s) containing missing values (geom_path).
-
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-4.png)<!-- -->
 
 ``` r
 #Team member 4
@@ -104,10 +124,9 @@ d %>%
 ```
 
     ## Warning: Removed 20 rows containing missing values (geom_point).
+    ## Removed 20 row(s) containing missing values (geom_path).
 
-    ## Warning: Removed 20 row(s) containing missing values (geom_path).
-
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-5.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-5.png)<!-- -->
 
 ``` r
 #Team member 5
@@ -122,10 +141,9 @@ d %>%
 ```
 
     ## Warning: Removed 20 rows containing missing values (geom_point).
+    ## Removed 20 row(s) containing missing values (geom_path).
 
-    ## Warning: Removed 20 row(s) containing missing values (geom_path).
-
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-6.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-6.png)<!-- -->
 
 ``` r
 #Team member 6
@@ -140,10 +158,9 @@ d %>%
 ```
 
     ## Warning: Removed 20 rows containing missing values (geom_point).
+    ## Removed 20 row(s) containing missing values (geom_path).
 
-    ## Warning: Removed 20 row(s) containing missing values (geom_path).
-
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-7.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-7.png)<!-- -->
 
 ``` r
 #Team member 7
@@ -158,10 +175,9 @@ d %>%
 ```
 
     ## Warning: Removed 20 rows containing missing values (geom_point).
+    ## Removed 20 row(s) containing missing values (geom_path).
 
-    ## Warning: Removed 20 row(s) containing missing values (geom_path).
-
-![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-4-8.png)<!-- -->
+![](CRRC-Interaction-variability_files/figure-gfm/unnamed-chunk-5-8.png)<!-- -->
 
 Empty multilevel model to estimate within person variance
 
@@ -378,3 +394,26 @@ summary(lmer(s.ip_6 ~  + (1 | team) + (1 | pid), data = d))
     ## Fixed effects:
     ##             Estimate Std. Error t value
     ## (Intercept)  0.90638    0.02103   43.11
+
+``` r
+my.mssd <- function(data)
+{
+    diffToNext<-data[2:length(data)]-data[1:(length(data)-1)] #this computes the difference between each value and the next
+    diffToNext2<-diffToNext^2                  #this squares the difference
+    SSdiff<- sum(diffToNext2,na.rm=TRUE)       #this takes the sum of the squared differences
+    denominator<-sum(!is.na(diffToNext))       #this computes the number of non-missing elements (denominator)
+                                               #which corresponds to the t-1 value
+    mssd<-SSdiff/denominator                   #this computes the MSSD
+    return(mssd)
+}
+```
+
+``` r
+mssd.stats <- d %>%
+  group_by(pid) %>%
+  summarise(mssd = mssd(s.ip_t))
+  
+mssd(d[which(d$pid == 100101),]$s.ip_t)
+```
+
+    ## [1] 7.237288
