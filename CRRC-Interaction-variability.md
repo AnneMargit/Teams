@@ -12,14 +12,15 @@ library(ggplot2)
 load("d.Rdata")
 ```
 
-Calculate the total number of interaction partners (morning, evening,
-day)
+Calculate the total number of interaction partners
 
 ``` r
 d <- d %>%
   rowwise() %>% 
   mutate(s.ip_t = sum(s.ip_1, s.ip_2, s.ip_3, s.ip_4, s.ip_5, s.ip_6, s.ip_7, na.rm=T))
 ```
+
+Plot mean and sd of number of interaction partners per day and type
 
 ``` r
 d %>%
