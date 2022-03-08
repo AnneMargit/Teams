@@ -26,8 +26,9 @@ d <- d %>%
   mutate(s.ip_t = sum(s.ip_1, s.ip_2, s.ip_3, s.ip_4, s.ip_5, s.ip_6, s.ip_7, na.rm=T))
 ```
 
-Plot mean and sd of number of interaction partners per day and type
+Plot mean and sd of total number of interaction partners per day and type, and for interactions with each individual team member
 ```{r, message=F}
+#Total
 d %>%
   group_by(day, type) %>%
   summarize(p = mean(s.ip_t, na.rm=T),
@@ -36,10 +37,102 @@ d %>%
   geom_point() + 
   geom_line(aes(group=type, color=type)) +
   geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 1
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_1, na.rm=T),
+            q = sd(s.ip_1, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 2
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_2, na.rm=T),
+            q = sd(s.ip_3, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 3
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_3, na.rm=T),
+            q = sd(s.ip_3, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 4
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_4, na.rm=T),
+            q = sd(s.ip_4, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 5
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_5, na.rm=T),
+            q = sd(s.ip_5, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 6
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_6, na.rm=T),
+            q = sd(s.ip_6, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
+#Team member 7
+d %>%
+  group_by(day, type) %>%
+  summarize(p = mean(s.ip_7, na.rm=T),
+            q = sd(s.ip_7, na.rm=T)) %>%
+  ggplot(aes(x=day, y=p)) + 
+  geom_point() + 
+  geom_line(aes(group=type, color=type)) +
+  geom_errorbar(aes(ymin = p - q, ymax = p + q, width = .2))
+
 ```
 
 Empty multilevel model to estimate within person variance
 ```{r, message=F}
-empty <- lmer(s.ip_t ~ 1 + (1 | team) + (1 | pid), data = d)
-summary(empty)
+#Total 
+summary(lmer(s.ip_t ~ 1 + (1 | team) + (1 | pid), data = d))
+
+#Team member 1 
+summary(lmer(s.ip_1 ~ 1 + (1 | team) + (1 | pid), data = d))
+
+#Team member 2
+summary(lmer(s.ip_2 ~ 1 + (1 | team) + (1 | pid), data = d))
+
+#Team member 3
+summary(lmer(s.ip_3 ~ 1 + (1 | team) + (1 | pid), data = d))
+
+#Team member 4
+summary(lmer(s.ip_4 ~ 1 + (1 | team) + (1 | pid), data = d))
+
+#Team member 5
+summary(lmer(s.ip_5 ~ 1 + (1 | team) + (1 | pid), data = d))
+
+#Team member 6
+summary(lmer(s.ip_6 ~  + (1 | team) + (1 | pid), data = d))
+
+#Team member 7
+summary(lmer(s.ip_6 ~  + (1 | team) + (1 | pid), data = d))
 ```
