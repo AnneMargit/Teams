@@ -1,0 +1,72 @@
+---
+title: "CRRC Interactions per day"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F}
+library(dplyr)
+library(plyr)
+library(tidyr)
+library(psych)
+library(lme4)
+library(ggplot2)
+```
+
+```{r, message=F}
+load("d.Rdata")
+```
+
+Plot: With which team members did the participant interact with each day?
+```{r, message=F}
+d$pid <- as.factor(d$pid)
+
+# Change data to longer format so all s.ip variables are in one column
+dlonger <- d %>% 
+  select(s.ip_1, s.ip_2, s.ip_3, s.ip_4, s.ip_5, s.ip_6, s.ip_7, pid, team, team_size, tid, day, type) %>%
+   pivot_longer(s.ip_1:s.ip_7, names_to = "team.member", values_to = "response") %>%
+  mutate(team.member = ifelse(response == "1", team.member, 0)) 
+
+# Revalue
+dlonger$team.member <- plyr::revalue(dlonger$team.member, c("s.ip_1" = "1", "s.ip_2" = "2", "s.ip_3" = "3", "s.ip_4" = "4", "s.ip_5" = "5", "s.ip_6" = "6", "s.ip_7" = "7"))
+
+dlonger$team.member <- as.numeric(dlonger$team.member)
+
+# Plot first five participants
+dlonger %>%
+   filter(pid == 100101:100105) %>%
+   filter(!is.na(response))%>%
+   ggplot(aes(x = day, y = team.member, color = pid)) +
+   geom_jitter() + 
+   scale_y_continuous(limits = c(0,7), breaks = 1:7) +
+   facet_wrap(vars(pid), ncol = 5)
+```
+
+Additional plot of only the first 5 days
+```{r, message=F}
+dlonger %>%
+   filter(pid == 100101:100105) %>%
+   filter(!is.na(response))%>%
+   filter(day < 6) %>%
+   ggplot(aes(x = day, y = team.member, color = pid)) +
+   geom_jitter() + 
+   scale_y_continuous(limits = c(0,7), breaks = 1:7) +
+   scale_x_continuous(breaks = 1:5) +
+   facet_wrap(vars(pid), ncol = 5)
+```
+
+
+```{r, message=F}
+
+```
+
+
+```{r, message=F}
+
+```
+
+
+
