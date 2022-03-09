@@ -42,6 +42,7 @@ dlonger %>%
    ggplot(aes(x = day, y = team.member, color = pid)) +
    geom_jitter() + 
    scale_y_continuous(limits = c(0,7), breaks = 1:7) +
+   scale_y_continuous(limits = c(0,7), breaks = 1:20) +
    facet_wrap(vars(pid), ncol = 5)
 ```
 

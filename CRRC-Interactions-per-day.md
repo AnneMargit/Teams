@@ -43,10 +43,11 @@ dlonger %>%
    ggplot(aes(x = day, y = team.member, color = pid)) +
    geom_jitter() + 
    scale_y_continuous(limits = c(0,7), breaks = 1:7) +
+   scale_y_continuous(limits = c(0,7), breaks = 1:20) +
    facet_wrap(vars(pid), ncol = 5)
 ```
 
-    ## Warning: Removed 7 rows containing missing values (geom_point).
+    ## Warning: Removed 8 rows containing missing values (geom_point).
 
 ![](CRRC-Interactions-per-day_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
@@ -64,6 +65,6 @@ dlonger %>%
    facet_wrap(vars(pid), ncol = 5)
 ```
 
-    ## Warning: Removed 2 rows containing missing values (geom_point).
+    ## Warning: Removed 1 rows containing missing values (geom_point).
 
 ![](CRRC-Interactions-per-day_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
