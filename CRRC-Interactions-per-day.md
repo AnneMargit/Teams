@@ -38,16 +38,13 @@ dlonger$team.member <- as.numeric(dlonger$team.member)
 
 # Plot first five participants
 dlonger %>%
-   filter(pid == 100101:100105) %>%
+   filter(pid == 100101 | pid == 100102 | pid == 100103 | pid == 100104 | pid == 100105) %>%
    filter(!is.na(response))%>%
    ggplot(aes(x = day, y = team.member, color = pid)) +
-   geom_jitter() + 
+   geom_point() + 
    scale_y_continuous(limits = c(0,7), breaks = 1:7) +
-   scale_y_continuous(limits = c(0,7), breaks = 1:20) +
    facet_wrap(vars(pid), ncol = 5)
 ```
-
-    ## Warning: Removed 8 rows containing missing values (geom_point).
 
 ![](CRRC-Interactions-per-day_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
@@ -55,16 +52,44 @@ Additional plot of only the first 5 days
 
 ``` r
 dlonger %>%
-   filter(pid == 100101:100105) %>%
+   filter(pid == 100101 | pid == 100102 | pid == 100103 | pid == 100104 | pid == 100105) %>%
    filter(!is.na(response))%>%
    filter(day < 6) %>%
    ggplot(aes(x = day, y = team.member, color = pid)) +
-   geom_jitter() + 
+   geom_point() + 
    scale_y_continuous(limits = c(0,7), breaks = 1:7) +
    scale_x_continuous(breaks = 1:5) +
    facet_wrap(vars(pid), ncol = 5)
 ```
 
-    ## Warning: Removed 1 rows containing missing values (geom_point).
-
 ![](CRRC-Interactions-per-day_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+Another group of five participants
+
+``` r
+dlonger %>%
+   filter(pid == 100201 | pid == 100202 | pid == 100203 | pid == 100204 | pid == 100301) %>%
+   filter(!is.na(response))%>%
+   ggplot(aes(x = day, y = team.member, color = pid)) +
+   geom_point() + 
+   scale_y_continuous(limits = c(0,7), breaks = 1:7) +
+   facet_wrap(vars(pid), ncol = 5)
+```
+
+![](CRRC-Interactions-per-day_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+Additional plot of only the first 5 days
+
+``` r
+dlonger %>%
+   filter(pid == 100201 | pid == 100202 | pid == 100203 | pid == 100204 | pid == 100301) %>%
+   filter(!is.na(response))%>%
+   filter(day < 6) %>%
+   ggplot(aes(x = day, y = team.member, color = pid)) +
+   geom_point() + 
+   scale_y_continuous(limits = c(0,7), breaks = 1:7) +
+   scale_x_continuous(breaks = 1:5) +
+   facet_wrap(vars(pid), ncol = 5)
+```
+
+![](CRRC-Interactions-per-day_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
