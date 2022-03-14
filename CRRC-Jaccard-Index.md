@@ -36,13 +36,6 @@ d_int <- d %>%
          s.ip_7 = ifelse(s.im_7 == 1, 1, NA))
 ```
 
-Select relevant data columns
-
-``` r
-d_int <- d_int %>%
-  select(tid, team_size, pid, day, type, s.ip_1:s.ip_7)
-```
-
 Calculate lags
 
 ``` r

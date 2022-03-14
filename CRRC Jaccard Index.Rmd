@@ -1,6 +1,6 @@
 ---
 title: "CRRC Jaccard Index"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -32,12 +32,6 @@ d_int <- d %>%
          s.ip_5 = ifelse(s.im_5 == 1, 1, NA),
          s.ip_6 = ifelse(s.im_6 == 1, 1, NA),
          s.ip_7 = ifelse(s.im_7 == 1, 1, NA))
-```
-
-Select relevant data columns
-```{r, message=F}
-d_int <- d_int %>%
-  select(tid, team_size, pid, day, type, s.ip_1:s.ip_7)
 ```
 
 Calculate lags 
