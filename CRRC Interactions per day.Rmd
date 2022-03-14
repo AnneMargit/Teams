@@ -1,6 +1,6 @@
 ---
 title: "CRRC Interactions per day"
-output: github_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
