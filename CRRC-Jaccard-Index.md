@@ -9,7 +9,6 @@ library(dplyr)
 
 ``` r
 library(psych)
-library(ggplot2)
 library(vegan)
 ```
 
@@ -23,23 +22,12 @@ load("/Volumes/Anne/Harvard/Teams/Teams/d.Rdata")
 d <- d[with(d, order(tid, pid, day, type)),]
 ```
 
-Select in-person interactions
-
-``` r
-d_int <- d %>%
-  mutate(s.ip_1 = ifelse(s.im_1 == 1, 1, NA),
-         s.ip_2 = ifelse(s.im_2 == 1, 1, NA),
-         s.ip_3 = ifelse(s.im_3 == 1, 1, NA),
-         s.ip_4 = ifelse(s.im_4 == 1, 1, NA),
-         s.ip_5 = ifelse(s.im_5 == 1, 1, NA),
-         s.ip_6 = ifelse(s.im_6 == 1, 1, NA),
-         s.ip_7 = ifelse(s.im_7 == 1, 1, NA))
-```
+## Within-day, all forms of interaction
 
 Calculate lags
 
 ``` r
-d_int <- d_int %>%
+d <- d %>%
   group_by(pid, day) %>%
   mutate(s.ip_1.lag = lag(s.ip_1, n=1L, default=NA),
          s.ip_2.lag = lag(s.ip_2, n=1L, default=NA),
@@ -54,93 +42,384 @@ d_int <- d_int %>%
 Make datasets for different team sizes (4, 5, 6, or 7)
 
 ``` r
-d_int_4 <- d_int %>% filter(team_size == 4)
+d_4 <- d %>% filter(team_size == 4)
 
-d_int_5 <- d_int %>% filter(team_size == 5)
+d_5 <- d %>% filter(team_size == 5)
 
-d_int_6 <- d_int %>% filter(team_size == 6)
+d_6 <- d %>% filter(team_size == 6)
 
-d_int_7 <- d_int %>% filter(team_size == 7)
+d_7 <- d %>% filter(team_size == 7)
 ```
 
 Make two data sets for each (one at time t and one at time t+1)
 
 ``` r
+# All teams
+d_a <- d %>% select(s.ip_1:s.ip_7)
+
+d_a <- d_a %>% replace(is.na(.), 0)
+
+d_b <- d %>% select(s.ip_1.lag:s.ip_7.lag)
+
+d_b <- d_b %>% replace(is.na(.), 0)
+
 # 4 member teams
-d_int_4a <- d_int_4 %>% select(s.ip_1:s.ip_4)
+d_4a <- d_4 %>% select(s.ip_1:s.ip_4)
 
-d_int_4a <- d_int_4a %>% replace(is.na(.), 0)
+d_4a <- d_4a %>% replace(is.na(.), 0)
 
-d_int_4b <- d_int_4 %>% select(s.ip_1.lag:s.ip_4.lag)
+d_4b <- d_4 %>% select(s.ip_1.lag:s.ip_4.lag)
 
-d_int_4b <- d_int_4b %>% replace(is.na(.), 0)
+d_4b <- d_4b %>% replace(is.na(.), 0)
 
 # 5 member teams
-d_int_5a <- d_int_5 %>% select(s.ip_1:s.ip_5)
+d_5a <- d_5 %>% select(s.ip_1:s.ip_5)
 
-d_int_5a <- d_int_5a %>% replace(is.na(.), 0)
+d_5a <- d_5a %>% replace(is.na(.), 0)
 
-d_int_5b <- d_int_5 %>% select(s.ip_1.lag:s.ip_5.lag)
+d_5b <- d_5 %>% select(s.ip_1.lag:s.ip_5.lag)
 
-d_int_5b <- d_int_5b %>% replace(is.na(.), 0)
+d_5b <- d_5b %>% replace(is.na(.), 0)
 
 # 6 member teams
-d_int_6a <- d_int_6 %>% select(s.ip_1:s.ip_6)
+d_6a <- d_6 %>% select(s.ip_1:s.ip_6)
 
-d_int_6a <- d_int_6a %>% replace(is.na(.), 0)
+d_6a <- d_6a %>% replace(is.na(.), 0)
 
-d_int_6b <- d_int_6 %>% select(s.ip_1.lag:s.ip_6.lag)
+d_6b <- d_6 %>% select(s.ip_1.lag:s.ip_6.lag)
 
-d_int_6b <- d_int_6b %>% replace(is.na(.), 0)
+d_6b <- d_6b %>% replace(is.na(.), 0)
 
 # 7 member teams
-d_int_7a <- d_int_7 %>% select(s.ip_1:s.ip_7)
+d_7a <- d_7 %>% select(s.ip_1:s.ip_7)
 
-d_int_7a <- d_int_7a %>% replace(is.na(.), 0)
+d_7a <- d_7a %>% replace(is.na(.), 0)
 
-d_int_7b <- d_int_7 %>% select(s.ip_1.lag:s.ip_7.lag)
+d_7b <- d_7 %>% select(s.ip_1.lag:s.ip_7.lag)
 
-d_int_7b <- d_int_7b %>% replace(is.na(.), 0)
+d_7b <- d_7b %>% replace(is.na(.), 0)
 ```
 
 Calculate Jaccard index with vegdist from vegan package
 
 ``` r
-# 4 member teams
-vegdist(rbind(unlist(d_int_4a, use.names=F), unlist(d_int_4b, use.names=F)), method="jaccard")
+# All teams
+vegdist(rbind(unlist(d_a, use.names=F), unlist(d_b, use.names=F)), method="jaccard", binary=T)
 ```
 
     ##           1
-    ## 2 0.9101782
+    ## 2 0.6965589
+
+``` r
+# 4 member teams
+vegdist(rbind(unlist(d_4a, use.names=F), unlist(d_4b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##           1
+    ## 2 0.7033048
 
 ``` r
 # 5 member teams
-vegdist(rbind(unlist(d_int_5a, use.names=F), unlist(d_int_5b, use.names=F)), method="jaccard")
+vegdist(rbind(unlist(d_5a, use.names=F), unlist(d_5b, use.names=F)), method="jaccard", binary=T)
 ```
 
     ##           1
-    ## 2 0.8737681
+    ## 2 0.6985525
 
 ``` r
 # 6 member teams
-vegdist(rbind(unlist(d_int_6a, use.names=F), unlist(d_int_6b, use.names=F)), method="jaccard")
+vegdist(rbind(unlist(d_6a, use.names=F), unlist(d_6b, use.names=F)), method="jaccard", binary=T)
 ```
 
     ##           1
-    ## 2 0.8765864
+    ## 2 0.6981276
 
 ``` r
 # 7 member teams
-vegdist(rbind(unlist(d_int_7a, use.names=F), unlist(d_int_7b, use.names=F)), method="jaccard")
+vegdist(rbind(unlist(d_7a, use.names=F), unlist(d_7b, use.names=F)), method="jaccard", binary=T)
 ```
 
     ##           1
-    ## 2 0.8710136
+    ## 2 0.6893025
 
-4 member teams: 0.91
+-   All: 0.69
+-   4 member teams: 0.70
+-   5 member teams: 0.70
+-   6 member teams: 0.70
+-   7 member teams: 0.69
 
-5 member teams: 0.87
+## Within-day, in-person interactions
 
-6 member teams: 0.88
+Select in-person interactions
 
-7 member teams: 0.87
+``` r
+d_inp <- d %>%
+  mutate(s.ip_1 = ifelse(s.im_1 == 1, 1, NA),
+         s.ip_2 = ifelse(s.im_2 == 1, 1, NA),
+         s.ip_3 = ifelse(s.im_3 == 1, 1, NA),
+         s.ip_4 = ifelse(s.im_4 == 1, 1, NA),
+         s.ip_5 = ifelse(s.im_5 == 1, 1, NA),
+         s.ip_6 = ifelse(s.im_6 == 1, 1, NA),
+         s.ip_7 = ifelse(s.im_7 == 1, 1, NA))
+```
+
+Make datasets for different team sizes (4, 5, 6, or 7)
+
+``` r
+d_inp_4 <- d_inp %>% filter(team_size == 4)
+
+d_inp_5 <- d_inp %>% filter(team_size == 5)
+
+d_inp_6 <- d_inp %>% filter(team_size == 6)
+
+d_inp_7 <- d_inp %>% filter(team_size == 7)
+```
+
+Make two data sets for each (one at time t and one at time t+1)
+
+``` r
+# All teams
+d_inp_a <- d_inp %>% select(s.ip_1:s.ip_7)
+
+d_inp_a <- d_inp_a %>% replace(is.na(.), 0)
+
+d_inp_b <- d_inp %>% select(s.ip_1.lag:s.ip_7.lag)
+
+d_inp_b <- d_inp_b %>% replace(is.na(.), 0)
+
+# 4 member teams
+d_inp_4a <- d_inp_4 %>% select(s.ip_1:s.ip_4)
+
+d_inp_4a <- d_inp_4a %>% replace(is.na(.), 0)
+
+d_inp_4b <- d_inp_4 %>% select(s.ip_1.lag:s.ip_4.lag)
+
+d_inp_4b <- d_inp_4b %>% replace(is.na(.), 0)
+
+# 5 member teams
+d_inp_5a <- d_inp_5 %>% select(s.ip_1:s.ip_5)
+
+d_inp_5a <- d_inp_5a %>% replace(is.na(.), 0)
+
+d_inp_5b <- d_inp_5 %>% select(s.ip_1.lag:s.ip_5.lag)
+
+d_inp_5b <- d_inp_5b %>% replace(is.na(.), 0)
+
+# 6 member teams
+d_inp_6a <- d_inp_6 %>% select(s.ip_1:s.ip_6)
+
+d_inp_6a <- d_inp_6a %>% replace(is.na(.), 0)
+
+d_inp_6b <- d_inp_6 %>% select(s.ip_1.lag:s.ip_6.lag)
+
+d_inp_6b <- d_inp_6b %>% replace(is.na(.), 0)
+
+# 7 member teams
+d_inp_7a <- d_inp_7 %>% select(s.ip_1:s.ip_7)
+
+d_inp_7a <- d_inp_7a %>% replace(is.na(.), 0)
+
+d_inp_7b <- d_inp_7 %>% select(s.ip_1.lag:s.ip_7.lag)
+
+d_inp_7b <- d_inp_7b %>% replace(is.na(.), 0)
+```
+
+Calculate Jaccard index
+
+``` r
+# All
+vegdist(rbind(unlist(d_inp_a, use.names=F), unlist(d_inp_b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##           1
+    ## 2 0.8475609
+
+``` r
+# 4 member teams
+vegdist(rbind(unlist(d_inp_4a, use.names=F), unlist(d_inp_4b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##           1
+    ## 2 0.8610488
+
+``` r
+# 5 member teams
+vegdist(rbind(unlist(d_inp_5a, use.names=F), unlist(d_inp_5b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##          1
+    ## 2 0.845979
+
+``` r
+# 6 member teams
+vegdist(rbind(unlist(d_inp_6a, use.names=F), unlist(d_inp_6b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##           1
+    ## 2 0.8464185
+
+``` r
+# 7 member teams
+vegdist(rbind(unlist(d_inp_7a, use.names=F), unlist(d_inp_7b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##           1
+    ## 2 0.8463957
+
+-   All: 0.85
+-   4 members: 0.86
+-   5 members: 0.85
+-   6 members: 0.85
+-   7 members: 0.85
+
+## Day-to-day changes in interactions, all forms of interactions
+
+``` r
+d_day <- d %>%
+  select(pid, team_size, tid, day, type, s.ip_1:s.ip_7)
+```
+
+``` r
+# Create variable to indicate if an interaction with team member happened that day
+
+d_day <- d_day %>% 
+  group_by(pid, day) %>%
+  mutate(ds.ip_1 = ifelse(1 %in% s.ip_1, 1, 0),
+         ds.ip_2 = ifelse(1 %in% s.ip_2, 1, 0),
+         ds.ip_3 = ifelse(1 %in% s.ip_3, 1, 0),
+         ds.ip_4 = ifelse(1 %in% s.ip_4, 1, 0),
+         ds.ip_5 = ifelse(1 %in% s.ip_5, 1, 0),
+         ds.ip_6 = ifelse(1 %in% s.ip_6, 1, 0),
+         ds.ip_7 = ifelse(1 %in% s.ip_7, 1, 0)) %>%
+  ungroup()
+
+# Select one row per day
+d_day <- d_day %>%
+  filter(type == "a")
+```
+
+Calculate lags
+
+``` r
+d_day <- d_day[with(d_day, order(pid, day)),]
+
+d_day <- d_day %>%
+  group_by(pid) %>%
+  mutate(ds.ip_1.lag = lag(ds.ip_1, n=1L, default=NA),
+         ds.ip_2.lag = lag(ds.ip_2, n=1L, default=NA),
+         ds.ip_3.lag = lag(ds.ip_3, n=1L, default=NA),
+         ds.ip_4.lag = lag(ds.ip_4, n=1L, default=NA),
+         ds.ip_5.lag = lag(ds.ip_5, n=1L, default=NA),
+         ds.ip_6.lag = lag(ds.ip_6, n=1L, default=NA),
+         ds.ip_7.lag = lag(ds.ip_7, n=1L, default=NA)) %>%
+  ungroup()
+```
+
+Make datasets for different team sizes (4, 5, 6, or 7)
+
+``` r
+d_day_4 <- d_day %>% filter(team_size == 4)
+
+d_day_5 <- d_day %>% filter(team_size == 5)
+
+d_day_6 <- d_day %>% filter(team_size == 6)
+
+d_day_7 <- d_day %>% filter(team_size == 7)
+```
+
+Make two data sets for each (one at time t and one at time t+1)
+
+``` r
+# All teams
+d_day_a <- d_day %>% select(ds.ip_1:ds.ip_7)
+
+d_day_a <- d_day_a %>% replace(is.na(.), 0)
+
+d_day_b <- d_day %>% select(ds.ip_1.lag:ds.ip_7.lag)
+
+d_day_b <- d_day_b %>% replace(is.na(.), 0)
+
+# 4 member teams
+d_day_4a <- d_day_4 %>% select(ds.ip_1:ds.ip_4)
+
+d_day_4a <- d_day_4a %>% replace(is.na(.), 0)
+
+d_day_4b <- d_day_4 %>% select(ds.ip_1.lag:ds.ip_4.lag)
+
+d_day_4b <- d_day_4b %>% replace(is.na(.), 0)
+
+# 5 member teams
+d_day_5a <- d_day_5 %>% select(ds.ip_1:ds.ip_5)
+
+d_day_5a <- d_day_5a %>% replace(is.na(.), 0)
+
+d_day_5b <- d_day_5 %>% select(ds.ip_1.lag:ds.ip_5.lag)
+
+d_day_5b <- d_day_5b %>% replace(is.na(.), 0)
+
+# 6 member teams
+d_day_6a <- d_day_6 %>% select(ds.ip_1:ds.ip_6)
+
+d_day_6a <- d_day_6a %>% replace(is.na(.), 0)
+
+d_day_6b <- d_day_6 %>% select(ds.ip_1.lag:ds.ip_6.lag)
+
+d_day_6b <- d_day_6b %>% replace(is.na(.), 0)
+
+# 7 member teams
+d_day_7a <- d_day_7 %>% select(ds.ip_1:ds.ip_7)
+
+d_day_7a <- d_day_7a %>% replace(is.na(.), 0)
+
+d_day_7b <- d_day_7 %>% select(ds.ip_1.lag:ds.ip_7.lag)
+
+d_day_7b <- d_day_7b %>% replace(is.na(.), 0)
+```
+
+Calculate Jaccard index
+
+``` r
+# All
+vegdist(rbind(unlist(d_day_a, use.names=F), unlist(d_day_b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##            1
+    ## 2 0.06943457
+
+``` r
+# 4 member teams
+vegdist(rbind(unlist(d_day_4a, use.names=F), unlist(d_day_4b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##            1
+    ## 2 0.06669644
+
+``` r
+# 5 member teams
+vegdist(rbind(unlist(d_day_5a, use.names=F), unlist(d_day_5b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##            1
+    ## 2 0.07264788
+
+``` r
+# 6 member teams
+vegdist(rbind(unlist(d_day_6a, use.names=F), unlist(d_day_6b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##            1
+    ## 2 0.07046391
+
+``` r
+# 7 member teams
+vegdist(rbind(unlist(d_day_7a, use.names=F), unlist(d_day_7b, use.names=F)), method="jaccard", binary=T)
+```
+
+    ##            1
+    ## 2 0.06459264
+
+-   All: 0.069
+-   4 members: 0.067
+-   5 members: 0.073
+-   6 members: 0.070
+-   7 members: 0.065
