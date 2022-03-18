@@ -1,5 +1,5 @@
 ---
-title: "CRRC passion predicted by difference in stress experience - perception"
+title: "CRRC passion predicted by difference in own experience - team perception"
 output: github_document
 ---
 
@@ -20,22 +20,20 @@ library(correlation)
 load("/Volumes/Anne/Harvard/Teams/Teams/d.Rdata")
 ```
 
+### How does the difference between self- and other report stress at current moment predict passion for work at next moment? 
+
 Create lead variable for passion and difference scores (i.e. next moment - current moment)
 ```{r, message=F}
-d <- d[with(d, order(day, type, pid)),]
+d <- d[with(d, order(pid, day, type)),]
 
 d <- d %>%
   group_by(pid) %>%
   mutate(s.pas.lead = lead(s.pas, n=1L)) %>%
   mutate(s.pas.diff = s.pas.lead - s.pas) %>%
   ungroup()
-
-d3 <- d %>%
-  select(pid, tid, day, type, s.pas, s.pas.lead, s.pas.diff)
-
 ```
 
-Stress perceived by team members in the morning (o.em1)
+Stress perceived by team members (o.em1)
 ```{r}
 d <- d %>%
   group_by(pid, day, type) %>%
@@ -46,7 +44,7 @@ d$stress.av[is.nan(d$stress.av)]<-NA
 
 Create stress_av lead, this leads the stress_av variable with 1 measurement occasion because other report about the morning is collected in the afternoon, and other report about the afternoon is collected in the evening. 
 ```{r}
-d <- d[with(d, order(day, type, pid)),]
+d <- d[with(d, order(pid, day, type)),]
 
 d <- d %>%
   group_by(pid) %>%
@@ -57,10 +55,9 @@ d <- d %>%
 
 Calculate difference between self-reported stress and other reported stress
 ```{r}
+# If stress.diff is positive, this means that I am more stressed than team members think I am
 d <- d %>%
   mutate(stress.diff = s.em1 - stress.av, na.rm=T)
-
-# If stress.diff is positive, this means that I am more stressed than team members think I am
 ```
 
 Correlation between self- and other reported stress at time t and passion for work at time t+1
@@ -95,8 +92,7 @@ d %>%
   geom_jitter() +
   geom_smooth(method="lm", se=F)
 ```
-
-How does the difference between self- and other report stress at current moment predict passion for work at next moment? 
+Multilevel model, persons nested in teams, passion at time t+1 predicted by the self-other report discrepancy
 ```{r}
 # Random intercept for team and id
 model1 <- lme(fixed = s.pas.lead ~ stress.diff,
@@ -114,5 +110,93 @@ model2 <- lme(fixed = s.pas.lead ~ stress.diff,
 
 summary(model2)
 ```
+
+### How does the difference between self-reported happiness and team-reported happiness associate with passion over time?
+
+Happiness perceived by team members (o.em2)
+```{r}
+d <- d %>%
+  group_by(pid, day, type) %>%
+    mutate(hap.av = mean(c(o.em2_1, o.em2_2, o.em2_3, o.em2_4, o.em2_5, o.em2_6, o.em2_7), na.rm=T))
+
+d$hap.av[is.nan(d$hap.av)]<-NA
+```  
+
+Create hap.av lead (same thing as for stress.av). 
+```{r}
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(hap.av.lead = lead(hap.av, n=1L)) %>%
+  ungroup()
+```
+
+Calculate difference between self-reported happiness and other reported happiness
+```{r}
+# If hap.diff is positive, this means that I am happier than team members think I am
+d <- d %>%
+  mutate(hap.diff = s.em2 - hap.av, na.rm=T)
+```
+
+Correlation between self- and other reported happiness at time t and passion for work at time t+1
+```{r}
+# Self-report
+d %>%
+  select(s.em2, s.pas.lead) %>%
+  correlation()
+
+d %>%
+  ggplot(aes(x=s.pas.lead, y=s.em2)) + 
+  geom_jitter() +
+  geom_smooth(method="lm", se=F)
+
+# Other report
+d %>%
+  select(hap.av.lead, s.pas.lead) %>%
+  correlation()
+
+d %>%
+  ggplot(aes(x=s.pas.lead, y=hap.av.lead)) + 
+  geom_jitter() +
+  geom_smooth(method="lm", se=F)
+
+# Difference between self-report and other report
+d %>%
+  select(hap.diff, s.pas.lead) %>%
+  correlation()
+
+d %>%
+  ggplot(aes(x=s.pas.lead, y=hap.diff)) + 
+  geom_jitter() +
+  geom_smooth(method="lm", se=F)
+```
+
+Multilevel model, persons nested in teams, passion at time t+1 predicted by the self-other report discrepancy
+```{r}
+# Random intercept for team and id
+model3 <- lme(fixed = s.pas.lead ~ hap.diff,
+              random = ~1 | tid/pid,
+              data = d,
+              na.action = na.omit)
+
+summary(model3)
+
+# Random slopes for team and id
+model4 <- lme(fixed = s.pas.lead ~ hap.diff,
+              random = ~ hap.diff | tid/pid,
+              data = d,
+              na.action = na.omit)
+
+summary(model4)
+```
+
+```{r}
+
+
+```
+
+
+
 
 
