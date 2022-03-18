@@ -1,0 +1,118 @@
+---
+title: "CRRC passion predicted by difference in stress experience - perception"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=F}
+library(dplyr)
+library(psych)
+library(nlme)
+library(ggplot2)
+library(effects)
+library(correlation)
+```
+
+```{r, message=F}
+load("/Volumes/Anne/Harvard/Teams/Teams/d.Rdata")
+```
+
+Create lead variable for passion and difference scores (i.e. next moment - current moment)
+```{r, message=F}
+d <- d[with(d, order(day, type, pid)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(s.pas.lead = lead(s.pas, n=1L)) %>%
+  mutate(s.pas.diff = s.pas.lead - s.pas) %>%
+  ungroup()
+
+d3 <- d %>%
+  select(pid, tid, day, type, s.pas, s.pas.lead, s.pas.diff)
+
+```
+
+Stress perceived by team members in the morning (o.em1)
+```{r}
+d <- d %>%
+  group_by(pid, day, type) %>%
+    mutate(stress.av = mean(c(o.em1_1, o.em1_2, o.em1_3, o.em1_4, o.em1_5, o.em1_6, o.em1_7), na.rm=T))
+
+d$stress.av[is.nan(d$stress.av)]<-NA
+```  
+
+Create stress_av lead, this leads the stress_av variable with 1 measurement occasion because other report about the morning is collected in the afternoon, and other report about the afternoon is collected in the evening. 
+```{r}
+d <- d[with(d, order(day, type, pid)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(stress.av.lead = lead(stress.av, n=1L)) %>%
+  ungroup()
+
+```
+
+Calculate difference between self-reported stress and other reported stress
+```{r}
+d <- d %>%
+  mutate(stress.diff = s.em1 - stress.av, na.rm=T)
+
+# If stress.diff is positive, this means that I am more stressed than team members think I am
+```
+
+Correlation between self- and other reported stress at time t and passion for work at time t+1
+```{r}
+# Self-report
+d %>%
+  select(s.em1, s.pas.lead) %>%
+  correlation()
+
+d %>%
+  ggplot(aes(x=s.pas.lead, y=s.em1)) + 
+  geom_jitter() +
+  geom_smooth(method="lm", se=F)
+
+# Other report
+d %>%
+  select(stress.av.lead, s.pas.lead) %>%
+  correlation()
+
+d %>%
+  ggplot(aes(x=s.pas.lead, y=stress.av.lead)) + 
+  geom_jitter() +
+  geom_smooth(method="lm", se=F)
+
+# Difference between self-report and other report
+d %>%
+  select(stress.diff, s.pas.lead) %>%
+  correlation()
+
+d %>%
+  ggplot(aes(x=s.pas.lead, y=stress.diff)) + 
+  geom_jitter() +
+  geom_smooth(method="lm", se=F)
+```
+
+How does the difference between self- and other report stress at current moment predict passion for work at next moment? 
+```{r}
+# Random intercept for team and id
+model1 <- lme(fixed = s.pas.lead ~ stress.diff,
+              random = ~1 | tid/pid,
+              data = d,
+              na.action = na.omit)
+
+summary(model1)
+
+# Random slopes for team and id
+model2 <- lme(fixed = s.pas.lead ~ stress.diff,
+              random = ~ stress.diff | tid/pid,
+              data = d,
+              na.action = na.omit)
+
+summary(model2)
+```
+
+
