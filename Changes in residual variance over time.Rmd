@@ -1,0 +1,97 @@
+---
+title: "Changes in residual variance over time"
+output: github_document
+---
+
+> The emergence of consensus (or the opposite, increases in divergence) can be captured by modeling changes in residual variances over time in multilevel growth models.
+
+> A two-level model estimates this through including (1) a time variable that accounts for change in the group means over time and (2) a variance function to account for changes in the residual variance over time.
+
+> See also Lang et al. 2019 (http://dx.doi.org/10.1037/0000115-023) 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library (nlme)
+```
+
+Step 0: Add time variable (= measurement count)
+```{r, message = F, warning = F}
+load("d.Rdata")
+
+d <- d %>%
+  select(team, pid, day, type, s.pas)
+
+d$team <- as.factor(d$team)
+d$pid <- as.factor(d$pid)
+
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+```
+
+
+Step 1: Examine change in groups' latent means over time, i.e. does group-level passion increase or decrease over time? 
+```{r, message = F, warning = F}
+step1 <- lme(s.pas ~ m, random =
+             list(team = pdDiag(~1), pid = pdSymm(~1)),
+           data = d, na.action = na.omit)
+
+summary(step1)
+VarCorr(step1)
+```
+> Average passion for work decreases slightly over time
+
+Step 2: Do some teams increase or decrease more in passion over time than the average, i.e. examining slope variability
+```{r, message = F, warning = F}
+step2a <-update(step1, random = list(team = pdDiag(~m), pid=pdSymm(~1)))
+summary(step2a)
+VarCorr(step2a)
+
+step2b <-update(step2a, random = list(team = pdSymm(~m), pid=pdSymm(~1)), 
+                control = lmeControl(opt = "optim"))
+
+summary(step2b)
+VarCorr(step2b)
+
+anova(step1, step2a, step2b)
+```
+> Including a random slope improves the model fit, which suggests that there is variability between groups in group-level passion change over time.
+
+Step 3: Is there an increase or decrease in passion consensus within groups? I.e. do group members' passion levels become more or less homogeneous over time?
+```{r, message = F, warning = F}
+step3 <- update(step2b, weights = varExp( form = ~ m))
+
+anova(step1, step2a, step2b, step3)
+summary(step3)$tTable
+
+VarCorr(step3)
+
+summary(step3)$modelStruct$varStruct
+```
+
+> The error term estimated in the last step reflects the percentage increase in the standard deviation of the errors with each unit increase in the time variable. 
+
+> So the residual variance at measurement 0 = 1.59 * (1.59 * exp[2 * 0.0013 * 0]) = 2.5281
+
+> The residual variance at measurement 60 = 1.59 * (1.59 * exp[2 * 0.0013 * 60]) = 2.95491
+
+> In other words, over the whole study period, team members become less similar to each other in how passionate they are (!)
+
+```{r, message = F, warning = F}
+
+```
+
+```{r, message = F, warning = F}
+
+```
+
