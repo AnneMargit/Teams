@@ -1,0 +1,178 @@
+---
+title: "Predicting future burnout from passion"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(nlme)
+library(lattice)
+library(skimr)
+library(ggplot2)
+library(effects)
+```
+Create variable "post" that indicates if measurement occurred after maximum team-level passion (team average) was reached (post = 1 if measurement is after, 0 = measurement is before)
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+d$team <- as.factor(d$team)
+d$pid <- as.factor(d$pid)
+
+d <- d %>%
+  filter(!is.na(s.pas))
+
+d <- d %>%
+  group_by(team, m) %>%
+  mutate(sd.pas = sd(s.pas),
+         mean.pas = mean(s.pas)) %>%
+  ungroup()
+
+# max = 0 if mean.pas = maximum
+d2 <- d %>%
+  group_by(team) %>%
+  mutate(max = ifelse(mean.pas == max(mean.pas), 0, 1))
+
+# First measurement on which maximum passion was reached
+d3 <- d2 %>%
+  group_by(team) %>%
+  arrange(max, m) %>%
+  slice(1) %>%
+  ungroup()
+
+d3 <- d3 %>%
+  mutate(firstm = m) %>%
+  select(pid, m, firstm)
+
+# Merge with original data
+d4 <- d2 %>%
+  left_join(d3, by = c("pid", "m"))
+
+d5 <- d4 %>%
+  group_by(team) %>%
+  fill(firstm, .direction = "downup")
+
+# post = 1 if measurement (m) is after the measurement on which maximum average passion was reached
+d6 <- d5 %>%
+  group_by(team) %>%
+  mutate(post = ifelse(m > firstm, 1, 0)) 
+
+d7 <- d6 %>%
+  select(c(pid, m, post))
+
+# Join with original data
+d8 <- d %>%
+  left_join(d7, by = c("pid", "m"))
+
+d <- d8
+
+d$post <- as.factor(d$post)
+
+d<- d%>%
+  dplyr::rename(team = team.x)
+```
+
+Centering s.pas on team level
+```{r}
+d.c <- d %>%
+  mutate(s.pas.dev = s.pas -mean.pas)
+```
+
+Create lead (= next moment) variable of burnout 
+```{r}
+d.c <- d.c[with(d.c, order(day, type, pid)),]
+
+d.c <- d.c %>%
+  group_by(pid) %>%
+  mutate(s.b2.lead = lead(s.b2, n=1L))
+```
+
+## Predicting burn-out from passion
+
+Multilevel model predicting burnout at next measurement occasion from current passion level --> passion as deviation from team-level mean. This answers the question: do I feel more/less burnout after if I'm more/less passionate than my team? Multilevel model with random intercepts.
+```{r}
+model_1 <- lme(fixed = s.b2.lead ~ s.pas.dev,
+                   random = ~1 | team/pid, 
+                   data = d.c, 
+                   na.action = na.omit,
+                   control = lmeControl(opt = "optim"))
+
+summary(model_1)
+```
+
+Include average team-level passion
+```{r}
+model_2 <- lme(fixed = s.b2.lead ~ mean.pas + s.pas.dev,
+                   random = list(team = ~1, pid = ~1), 
+                   data = d.c, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+anova(model_1, model_2)
+```
+
+Does this depend on whether it occurs before or after a peak in team-level passion? 
+```{r}
+model_3 <- lme(fixed = s.b2.lead ~ mean.pas + s.pas.dev + post + s.pas.dev*post,
+                   random = list(team = ~1, pid = ~1), 
+                   data = d.c, 
+                   na.action = na.omit)
+
+summary(model_3)
+
+anova(model_2, model_3)
+```
+Including the post-peak dummy does not change the model fit so we should leave these predictors out.  
+
+Model 2 + random slopes for s.pas.dev at id level.
+```{r}
+model_4 <- lme(fixed = s.b2.lead ~ mean.pas + s.pas.dev,
+                   random = list(team = ~1, pid = ~s.pas.dev),
+                   data = d.c, 
+                   na.action = na.omit)
+
+summary(model_4)
+
+anova(model_2, model_4)
+```
+
+Model with random slopes for s.pas.dev at id level and team level.
+```{r}
+model_5 <- lme(fixed = s.b2.lead ~ mean.pas + s.pas.dev,
+                   random = list(team = ~s.pas.dev, pid = ~s.pas.dev),
+                   data = d.c, 
+                   na.action = na.omit)
+
+summary(model_5)
+
+anova(model_4, model_5)
+```
+Model with random slope at id-level seems better (model 4). 
+
+> Results suggest that a positive deviation from average team passion levels predicts lower burnout at the next measurement occasion. Also, average team level passion is associated with lower burnout at the next measurement. 
+
+Plot of predicted values
+```{r}
+eff <- effect("s.pas.dev", model_4)
+
+plotje <- ggplot(as.data.frame(eff),
+                 aes(s.pas.dev, fit)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = fit-se, ymax = fit+se), width = 1)
+
+```
+
