@@ -1,0 +1,205 @@
+---
+title: "Predicting passion variance over time"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(nlme)
+library(lattice)
+library(skimr)
+library(ggplot2)
+library(effects)
+library(relativeVariability)
+library(multilevel)
+```
+## Prep
+
+Create measurement indicator (m) and calculate within-team average (mean.pas) and standard deviation (sd.pas) of passion: 
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+d$team <- as.factor(d$team)
+d$pid <- as.factor(d$pid)
+
+# There are 10 measurements with missings on passion, I delete these 
+d <- d %>%
+  filter(!is.na(s.pas))
+
+d <- d %>%
+  group_by(team, m) %>%
+  mutate(sd.pas = sd(s.pas),
+         mean.pas = mean(s.pas)) %>%
+  ungroup()
+```
+
+## Plot
+
+Some plots of within-team variability over time
+```{r}
+d %>%
+  filter(team == 1001 | team == 1002 | team == 1003 | team == 1004 |
+         team == 1005 | team == 1006 | team == 1007 | team == 1008) %>%
+  ggplot(aes(x = m, y=sd.pas, color= team)) +
+  geom_line(aes(y=sd.pas)) +
+  labs(title = "Team-level passion variability across measurements", y = "Passion SD") +
+   theme(legend.position="none") + 
+  facet_wrap(~team)
+
+```
+
+> There does not seem to be much of a pattern in passion variability over time
+
+## Using the standard deviation
+
+Predicting within-team passion variance over time with "m" as predictor.
+```{r}
+# Random intercept
+model_1 <- lme(fixed = sd.pas ~ m,
+                   random = ~1 | team, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1)
+
+# Random slope
+model_1b <- lme(fixed = sd.pas ~ m,
+                   random = ~m | team, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1b)
+
+# Compare likelihoods (using ML instead of REML, otherwise likelihoods are not comparable)
+model_1_r <- lme(fixed = sd.pas ~ m,
+                   random = ~1 | team, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_1b_r <- lme(fixed = sd.pas ~ m,
+                   random = ~m | team, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1_r, model_1b_r)
+
+# Include the mean of passion (because of sd - mean confounding)
+model_1c <- lme(fixed = sd.pas ~ m + mean.pas,
+                   random = ~m | team, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1c)
+
+# Compare likelihoods
+model_1c_r <- lme(fixed = sd.pas ~ m + mean.pas,
+                   random = ~m | team, 
+                   data = d, 
+                   na.action = na.omit, method = "ML", control = lmeControl(opt = "optim"))
+
+anova(model_1b_r, model_1c_r)
+```
+
+> The third model (including mean passion score and random slope for m) has a better fit. In this model, there's no significant association between time and within-team passion variability.  
+
+## Using the relative standard deviation
+
+Relative variability index >>> this is a measure of variability that is not confounded by the mean. See also Mestdagh et al. (2018, http://dx.doi.org/10.1037/met0000153). 
+```{r}
+# Calculate relative variability rl.sd
+rel.sd <- function(x) {
+  relativeSD(x, MIN = 1, MAX=7)
+}
+
+d2 <- d %>%
+  group_by(team, m) %>%
+  mutate(rl.sd = rel.sd(s.pas))
+
+# calculate relation bewteen mean and variability measures
+rlin1=cor(d2$mean.pas, d2$sd.pas)
+rlin2=cor(d2$mean.pas, d2$rl.sd, use = "complete.obs")
+print(rlin1)
+print(rlin2)
+
+```
+
+Predicting within-team passion variance over time using the relative sd.
+```{r}
+# Random intercept
+model_2 <- lme(fixed = rl.sd ~ m,
+                   random = ~1 | team, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+# Random slope
+model_2b <- lme(fixed = rl.sd ~ m,
+                   random = ~m | team, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2b)
+
+# Check likelihoods
+model_2_r <- lme(fixed = rl.sd ~ m,
+                   random = ~1 | team, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_2b_r <- lme(fixed = rl.sd ~ m,
+                   random = ~m | team, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2_r, model_2b_r)
+```
+> The second model (random slope) has a better fit. In this model there is no significant association between time and passion variability. 
+
+## Modeling residual variances
+
+```{r}
+# Examine change in groups' latent means over time
+step1 <- lme(s.pas ~ m, random =
+             list(team = pdDiag(~1), pid = pdSymm(~1)),
+             data = d, method = "ML", control = lmeControl(opt = "optim"))
+
+# Examine variability in slopes
+step2a <-update(step1, random = list(team = pdDiag(~m), pid=pdSymm(~1)))
+summary(step2a)
+VarCorr(step2a)
+
+step2b <-update(step2a, random = list(team = pdSymm(~m), pid=pdSymm(~1)), 
+                control = lmeControl(opt = "optim"))
+
+summary(step2b)
+VarCorr(step2b)
+
+anova(step1, step2a, step2b)
+
+# Examine whether there's a change in residual variance (i.e., consensus emergence) over time
+step3 <- update(step2b, weights = varExp(form = ~ m))
+
+anova(step1, step2a, step2b, step3)
+
+summary(step3)$tTable
+VarCorr(step3)
+
+summary(step3)$modelStruct$varStruct
+```
+
+> Suggests residual variance increases over time (but only minimally), and therefore that team members become less similar in their passion scores.
