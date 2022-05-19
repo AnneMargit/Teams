@@ -420,3 +420,202 @@ anova(model_2r, model_2br)
 ``` r
 # Second model is better. In this model there is also no change in SD over the days
 ```
+
+## Within-group agreement (rwg)
+
+The rwg statistic examines the variance of an observed distribution
+relative to the expected variance of some null distribution (some
+distribution where there’s no agreement). See also DeRue et al. (2010,
+<https://doi.org/10.1111/j.1744-6570.2009.01161.x>)
+
+``` r
+# Calculate within-group agreement (rwg). I calculate this per team per measurement occasion.
+# ranvar = (A^2-1)/12 with A = measurement options, so (7^2-1)/12 = 4
+d2 <- d %>%
+  group_by(m) %>%
+  summarise(wga = list(rwg(s.pas, grpid = team, ranvar = 4)))
+              
+d3 <- d2 %>%
+  unnest("wga") %>% 
+  rename(team = grpid)
+
+d4 <- d %>%
+  left_join(d3, by = c("team", "m"))
+```
+
+Predicting the within-group agreement over the day
+
+``` r
+# Random intercept
+model_3 <- lme(fixed = rwg ~ type,
+                   random = ~1 | team/pid/day, 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d4 
+    ##        AIC      BIC    logLik
+    ##   2736.002 2788.888 -1362.001
+    ## 
+    ## Random effects:
+    ##  Formula: ~1 | team
+    ##         (Intercept)
+    ## StdDev:   0.2281269
+    ## 
+    ##  Formula: ~1 | pid %in% team
+    ##          (Intercept)
+    ## StdDev: 1.049471e-05
+    ## 
+    ##  Formula: ~1 | day %in% pid %in% team
+    ##         (Intercept)  Residual
+    ## StdDev:   0.1161437 0.2233983
+    ## 
+    ## Fixed effects:  rwg ~ type 
+    ##                  Value   Std.Error    DF   t-value p-value
+    ## (Intercept)  0.5834362 0.018537787 33149 31.472810       0
+    ## type        -0.0078703 0.001227015 33149 -6.414198       0
+    ##  Correlation: 
+    ##      (Intr)
+    ## type -0.132
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##         Min          Q1         Med          Q3         Max 
+    ## -3.46035772 -0.39175508  0.06496097  0.44641824  3.45611574 
+    ## 
+    ## Number of Observations: 49730
+    ## Number of Groups: 
+    ##                   team          pid %in% team day %in% pid %in% team 
+    ##                    155                    829                  16580
+
+``` r
+# Random slopes for team and pid
+model_3b <- lme(fixed = rwg ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3b)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d4 
+    ##         AIC      BIC   logLik
+    ##   -10826.85 -10738.7 5423.424
+    ## 
+    ## Random effects:
+    ##  Formula: ~type | team
+    ##  Structure: General positive-definite, Log-Cholesky parametrization
+    ##             StdDev    Corr  
+    ## (Intercept) 0.3673536 (Intr)
+    ## type        0.1367864 -0.785
+    ## 
+    ##  Formula: ~type | pid %in% team
+    ##  Structure: General positive-definite, Log-Cholesky parametrization
+    ##             StdDev       Corr  
+    ## (Intercept) 5.835073e-06 (Intr)
+    ## type        3.506515e-06 -0.001
+    ## 
+    ##  Formula: ~1 | day %in% pid %in% team
+    ##         (Intercept)  Residual
+    ## StdDev:   0.1389905 0.1800322
+    ## 
+    ## Fixed effects:  rwg ~ type 
+    ##                  Value  Std.Error    DF   t-value p-value
+    ## (Intercept)  0.5890758 0.02960645 33149 19.896874  0.0000
+    ## type        -0.0106899 0.01103272 33149 -0.968928  0.3326
+    ##  Correlation: 
+    ##      (Intr)
+    ## type -0.785
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##         Min          Q1         Med          Q3         Max 
+    ## -4.41436279 -0.37771964  0.04139336  0.36869252  4.07003121 
+    ## 
+    ## Number of Observations: 49730
+    ## Number of Groups: 
+    ##                   team          pid %in% team day %in% pid %in% team 
+    ##                    155                    829                  16580
+
+``` r
+# Random slopes for team and pid and day
+model_3c <- lme(fixed = rwg ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~type), 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3c)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d4 
+    ##         AIC       BIC   logLik
+    ##   -10822.85 -10717.08 5423.424
+    ## 
+    ## Random effects:
+    ##  Formula: ~type | team
+    ##  Structure: General positive-definite, Log-Cholesky parametrization
+    ##             StdDev    Corr  
+    ## (Intercept) 0.3673536 (Intr)
+    ## type        0.1367864 -0.785
+    ## 
+    ##  Formula: ~type | pid %in% team
+    ##  Structure: General positive-definite, Log-Cholesky parametrization
+    ##             StdDev       Corr  
+    ## (Intercept) 3.621596e-06 (Intr)
+    ## type        1.188875e-06 0     
+    ## 
+    ##  Formula: ~type | day %in% pid %in% team
+    ##  Structure: General positive-definite, Log-Cholesky parametrization
+    ##             StdDev       Corr  
+    ## (Intercept) 1.389905e-01 (Intr)
+    ## type        8.992561e-06 0     
+    ## Residual    1.800322e-01       
+    ## 
+    ## Fixed effects:  rwg ~ type 
+    ##                  Value  Std.Error    DF   t-value p-value
+    ## (Intercept)  0.5890758 0.02960645 33149 19.896874  0.0000
+    ## type        -0.0106899 0.01103272 33149 -0.968927  0.3326
+    ##  Correlation: 
+    ##      (Intr)
+    ## type -0.785
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##         Min          Q1         Med          Q3         Max 
+    ## -4.41436276 -0.37771966  0.04139336  0.36869253  4.07003115 
+    ## 
+    ## Number of Observations: 49730
+    ## Number of Groups: 
+    ##                   team          pid %in% team day %in% pid %in% team 
+    ##                    155                    829                  16580
+
+``` r
+# Check likelihoods
+model_3r <- lme(fixed = rwg ~ type,
+                   random = ~1 | team/pid/day, 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = rwg ~ type,
+                   random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+model_3cr <- lme(fixed = rwg ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~type), 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br, model_3cr)
+```
+
+    ##           Model df        AIC       BIC    logLik   Test  L.Ratio p-value
+    ## model_3r      1  6   2718.274   2771.16 -1353.137                        
+    ## model_3br     2 10 -10840.190 -10752.05  5430.095 1 vs 2 13566.46  <.0001
+    ## model_3cr     3 12 -10836.190 -10730.42  5430.095 2 vs 3     0.00       1
+
+``` r
+# Second model is better. In this model there is no change in within-group agreement over the days
+```

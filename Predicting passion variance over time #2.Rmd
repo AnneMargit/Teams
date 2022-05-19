@@ -162,3 +162,68 @@ anova(model_2r, model_2br)
 # Second model is better. In this model there is also no change in SD over the days
 ```
 
+## Within-group agreement (rwg)
+
+The rwg statistic examines the variance of an observed distribution relative to the expected variance of some null distribution (some distribution where there's no agreement). See also DeRue et al. (2010, https://doi.org/10.1111/j.1744-6570.2009.01161.x)
+
+```{r}
+# Calculate within-group agreement (rwg). I calculate this per team per measurement occasion.
+# ranvar = (A^2-1)/12 with A = measurement options, so (7^2-1)/12 = 4
+d2 <- d %>%
+  group_by(m) %>%
+  summarise(wga = list(rwg(s.pas, grpid = team, ranvar = 4)))
+              
+d3 <- d2 %>%
+  unnest("wga") %>% 
+  rename(team = grpid)
+
+d4 <- d %>%
+  left_join(d3, by = c("team", "m"))
+```
+
+Predicting the within-group agreement over the day  
+```{r}
+# Random intercept
+model_3 <- lme(fixed = rwg ~ type,
+                   random = ~1 | team/pid/day, 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3)
+
+# Random slopes for team and pid
+model_3b <- lme(fixed = rwg ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3b)
+
+# Random slopes for team and pid and day
+model_3c <- lme(fixed = rwg ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~type), 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3c)
+
+# Check likelihoods
+model_3r <- lme(fixed = rwg ~ type,
+                   random = ~1 | team/pid/day, 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = rwg ~ type,
+                   random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+model_3cr <- lme(fixed = rwg ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~type), 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br, model_3cr)
+
+# Second model is better. In this model there is no change in within-group agreement over the days
+```
