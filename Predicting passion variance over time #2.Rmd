@@ -1,0 +1,164 @@
+---
+title: 'Predicting passion variance over time #2'
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(nlme)
+library(lattice)
+library(skimr)
+library(ggplot2)
+library(effects)
+library(relativeVariability)
+library(multilevel)
+```
+
+## Prep
+
+Create measurement indicator (m) and calculate within-team average (mean.pas) and standard deviation (sd.pas) of passion (on each measurement occasion): 
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+d$team <- as.factor(d$team)
+d$pid <- as.factor(d$pid)
+
+# There are 10 measurements with missings on passion, I delete these 
+d <- d %>%
+  filter(!is.na(s.pas))
+
+d <- d %>%
+  group_by(team, m) %>%
+  mutate(sd.pas = sd(s.pas),
+         mean.pas = mean(s.pas)) %>%
+  ungroup()
+```
+
+We want to look at SD variability across days, so I recode the daytime indicator (type) into 1,2,3
+```{r}
+d$type <- as.factor(d$type)
+levels(d$type)
+
+# They are ordered afternoon, evening, morning
+
+levels(d$type) <- c("2", "3", "1")
+
+d$type <- as.numeric(d$type)
+```
+
+## Predicting within-day SD variability 
+
+Three-level multilevel model (teams/participants/day), although maybe it should be a four-level model? 
+```{r}
+# Random intercept (+ correcting for the mean)
+model_1 <- lme(fixed = sd.pas ~ type + mean.pas,
+                   random = ~1 | team/pid/day, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1)
+
+# Random slope for type on team and participant level
+model_1b <- lme(fixed = sd.pas ~ type + mean.pas,
+                   random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1b)
+
+# Compare likelihoods (using ML instead of REML, otherwise likelihoods are not comparable)
+model_1r <- lme(fixed = sd.pas ~ type + mean.pas,
+                   random = ~1 | team/pid/day, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_1br <- lme(fixed = sd.pas ~ type + mean.pas,
+                   random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1r, model_1br)
+
+# Second model including random slopes for team and pid is better
+# Adding random slope for day 
+
+# Random slope for day on team and participant and day level
+model_1c <- lme(fixed = sd.pas ~ type + mean.pas,
+                   random = list(team = ~type, pid = ~type, day = ~type), 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1c)
+
+model_1cr <- lme(fixed = sd.pas ~ type + mean.pas,
+                   random = list(team = ~type, pid = ~type, day = ~type), 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1br, model_1cr)
+
+# Best model is model with random slopes for team and participants. In this model there is no significant change in SD over the course of the day
+```
+
+## Using the relative standard deviation
+
+Relative variability index >>> this is a measure of variability that is not confounded by the mean. See also Mestdagh et al. (2018, http://dx.doi.org/10.1037/met0000153). 
+```{r}
+# Calculate relative variability rl.sd
+rel.sd <- function(x) {
+  relativeSD(x, MIN = 1, MAX=7)
+}
+
+d2 <- d %>%
+  group_by(team, m) %>%
+  mutate(rl.sd = rel.sd(s.pas))
+
+```
+
+Predicting within-team passion variance over time using the relative sd.
+```{r}
+# Random intercept
+model_2 <- lme(fixed = rl.sd ~ type,
+                   random = ~1 | team/pid/day, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+# Random slopes for team and pid
+model_2b <- lme(fixed = rl.sd ~ type,
+                    random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2b)
+
+# Check likelihoods
+model_2r <- lme(fixed = rl.sd ~ type,
+                   random = ~1 | team/pid/day, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_2br <- lme(fixed = rl.sd ~ type,
+                   random = list(team = ~type, pid = ~type, day = ~1), 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2r, model_2br)
+
+# Second model is better. In this model there is also no change in SD over the days
+```
+
