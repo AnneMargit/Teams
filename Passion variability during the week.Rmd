@@ -1,0 +1,329 @@
+---
+title: "Passion variability during the week"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(nlme)
+library(lattice)
+library(skimr)
+library(ggplot2)
+library(effects)
+library(relativeVariability)
+library(multilevel)
+library(tidyr)
+```
+
+## Prep
+
+Create measurement indicator (m) and calculate within-team average (mean.pas) and standard deviation (sd.pas) of passion (on each measurement occasion). Calculate also average per day (mean.pas.d) and sd per day (sd.pas.d). Create week-indicator (week)
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+d$team <- as.factor(d$team)
+d$pid <- as.factor(d$pid)
+
+# There are 10 measurements with missings on passion, I delete these 
+d <- d %>%
+  filter(!is.na(s.pas))
+
+d <- d %>%
+  group_by(team, m) %>%
+  mutate(sd.pas = sd(s.pas),
+         mean.pas = mean(s.pas)) %>%
+  ungroup()
+
+# Passion SD and mean
+
+d <- d %>%
+  group_by(team, day) %>%
+  mutate(sd.pas.d = sd(s.pas),
+         mean.pas.d = mean(s.pas)) %>%
+  ungroup()
+
+# Week indicator
+
+d <- d %>%
+  mutate(week = case_when(
+    day > 0 & day < 8 ~ 1,
+    day > 7 & day < 15 ~2,
+    day > 14 & day < 22 ~3))
+
+# New day variable to indicate day of the week (1,2,3,4,5,6,7, 1,2,3,4,5,6,7 etc)
+
+d <- d %>%
+  mutate(day.new = case_when(
+    day == 1 | day == 8 | day == 15 ~ 1,
+    day == 2 | day == 9 | day == 16 ~ 2,
+    day == 3 | day == 10 | day == 17 ~ 3,
+    day == 4 | day == 11 | day == 18 ~ 4,
+    day == 5 | day == 12 | day == 19 ~ 5,
+    day == 6 | day == 13 | day == 20 ~ 6,
+    day == 7 | day == 14 ~ 7))
+```
+
+## Does passion variability change throughout the week?
+
+With day of the week (1-7) as predictor and daily SD (!) as dependent variable:
+```{r}
+# Random intercept (+ correcting for the mean)
+model_1 <- lme(fixed = sd.pas.d ~ day.new + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1)
+
+# Random slope for day on team and participant level
+model_1b <- lme(fixed = sd.pas.d ~ day.new + mean.pas.d,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1b)
+
+# Compare likelihoods (using ML instead of REML, otherwise likelihoods are not comparable)
+model_1r <- lme(fixed = sd.pas.d ~ day.new + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_1br <- lme(fixed = sd.pas.d ~ day.new + mean.pas.d,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1r, model_1br)
+
+# Best model is model with random slopes for day on team and participant level. There is a very  slight decrease in daily passion SD (-0.0065) over the course of the week 
+
+```
+With day of the week (1-7) as predictor and SD at each measurement (!) as dependent variable:
+```{r}
+model_1c <- lme(fixed = sd.pas ~ day.new + mean.pas,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1c)
+
+# Random slope for day on team and participant level
+model_1d <- lme(fixed = sd.pas ~ day.new + mean.pas,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1d)
+
+# Compare likelihoods 
+model_1cr <- lme(fixed = sd.pas ~ day.new + mean.pas,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_1dr <- lme(fixed = sd.pas ~ day.new + mean.pas,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1cr, model_1dr)
+
+# The second model is better. It shows similar results as when looking at daily SD passion variability: over the course of the week, within-team passion variability decreases slightly (-0.008) 
+```
+
+## Using the relative standard deviation
+
+Relative variability index >>> this is a measure of variability that is not confounded by the mean. See also Mestdagh et al. (2018, http://dx.doi.org/10.1037/met0000153). 
+```{r}
+# Calculate relative variability rl.sd
+rel.sd <- function(x) {
+  relativeSD(x, MIN = 1, MAX=7)
+}
+
+d2 <- d %>%
+  group_by(team, m) %>%
+  mutate(rl.sd = rel.sd(s.pas))
+
+# Daily relative sd = rl.sd.d
+d2 <- d2 %>%
+  group_by(team, day) %>%
+  mutate(rl.sd.d = rel.sd(s.pas))
+
+```
+
+Day.new as predictor, daily relative SD as dependent:
+```{r}
+# Random intercept
+model_2 <- lme(fixed = rl.sd.d ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+# Random slopes for day on team and pid level
+model_2b <- lme(fixed = rl.sd.d ~ day.new,
+                    random = list(team = ~day.new, pid = ~day.new), 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2b)
+
+# Check likelihoods
+model_2r <- lme(fixed = rl.sd.d ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_2br <- lme(fixed = rl.sd.d ~ day.new,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2r, model_2br)
+
+# Second model is better. This again shows similar results: a decrease in relative SD over the course of the week (-0.0023)
+```
+
+Day.new as predictor, relative SD per measurement (!) as dependent:
+```{r}
+# Random intercept
+model_2c <- lme(fixed = rl.sd ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2c)
+
+# Random slopes for day on team and pid level
+model_2d <- lme(fixed = rl.sd ~ day.new,
+                    random = list(team = ~day.new, pid = ~day.new), 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2d)
+
+# Check likelihoods
+model_2cr <- lme(fixed = rl.sd ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_2dr <- lme(fixed = rl.sd ~ day.new,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2cr, model_2dr)
+
+# Second model is better. Also a slight decrease in relative SD over the course of the week
+```
+
+## Within-group agreement (rwg)
+
+The rwg statistic examines the variance of an observed distribution relative to the expected variance of some null distribution (some distribution where there's no agreement). See also DeRue et al. (2010, https://doi.org/10.1111/j.1744-6570.2009.01161.x)
+
+```{r}
+# Calculate within-group agreement (rwg). I calculate this per team per measurement occasion.
+# ranvar = (A^2-1)/12 with A = measurement options, so (7^2-1)/12 = 4
+d2 <- d %>%
+  group_by(m) %>%
+  summarise(wga = list(rwg(s.pas, grpid = team, ranvar = 4)))
+              
+d3 <- d2 %>%
+  unnest("wga") %>% 
+  rename(team = grpid)
+
+d4 <- d %>%
+  left_join(d3, by = c("team", "m"))
+
+# Average within-group agreement per day
+d4 <- d4 %>%
+  group_by(team, day) %>%
+  mutate(rwg.d = mean(rwg))
+```
+
+Predicting daily within-group agreement over the course of the week
+```{r}
+# Random intercept
+model_3 <- lme(fixed = rwg.d ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3)
+
+# Random slopes for team and pid
+model_3b <- lme(fixed = rwg.d ~ day.new,
+                    random = list(team = ~day.new, pid = ~day.new), 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3b)
+
+# Check likelihoods
+model_3r <- lme(fixed = rwg.d ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = rwg.d ~ day.new,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br)
+
+# Second model is better. In this model there is no change in daily within-group agreement over the course of the week.
+```
+
+Predicting within-group agreement per measurement (!) over the course of the week
+```{r}
+# Random intercept
+model_3c <- lme(fixed = rwg ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3c)
+
+# Random slopes for team and pid
+model_3d <- lme(fixed = rwg ~ day.new,
+                    random = list(team = ~day.new, pid = ~day.new), 
+                   data = d4, 
+                   na.action = na.omit)
+
+summary(model_3d)
+
+# Check likelihoods
+model_3cr <- lme(fixed = rwg ~ day.new,
+                   random = ~1 | team/pid, 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+model_3dr <- lme(fixed = rwg ~ day.new,
+                   random = list(team = ~day.new, pid = ~day.new), 
+                   data = d4, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3cr, model_3dr)
+
+# Second model is better. No change
+```
+
+> SUMMARY: there seems to be a very slight decrease in passion variability within teams over the course of the week. Meaning that team members become slightly more similar in their passion levels as the week goes on. This is true when looking at daily passion levels and passion at each measurement, and while examining the SD while controlling for the mean as well as using the relative SD.
