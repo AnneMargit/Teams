@@ -5,6 +5,7 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 999) 
 ```
 
 ```{r, message = F, warning = F}
@@ -20,6 +21,7 @@ library(relativeVariability)
 library(multilevel)
 library(tidyr)
 library(psych)
+library(ggpubr)
 ```
 
 ## Prep
@@ -130,9 +132,137 @@ plot <- ggplot(effdata, aes(x = sd.pas.d, y = fit, color = mean.pas.d, group = m
 ```{r}
 plot
 ```
+## Next morning stress and burnout
+
+```{r}
+d <- d %>%
+  mutate(stress.m = lead(s.em1, n=1L),
+         burnout.m = lead(s.b2, 1L))
+
+# Select only evening measurements (doesn't matter for average team passion/sd but does for stress)
+
+d2 <- d %>%
+  filter(type == "e")
+```
+
+Models for stress:
+```{r}
+model_2 <- lme(fixed = stress.m ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+# Interaction
+model_2b <- lme(fixed = stress.m ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2b)
+
+# Likelihood check
+model_2r <- lme(fixed = stress.m ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_2br <- lme(fixed = stress.m ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2r, model_2br)
+```
+
+> Best model is model without interaction effect
+
+Plots for stress:
+```{r}
+eff1 <- effect(c("sd.pas.d"),  model_2)
+eff2 <- effect(c("mean.pas.d"),  model_2)
+
+effdata1 <- as.data.frame(eff1)
+effdata2 <- as.data.frame(eff2)
+
+plot1 <- ggplot(effdata1, aes(x = sd.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion SD", y="Stress (morning)") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion mean", y="Stress (morning)") + theme_classic() + theme(text=element_text(size=12)) 
+
+library(ggpubr)
+
+plots <- ggarrange(plot1, plot2, ncol = 2, nrow = 1)
+plots <- annotate_figure(plots, top = text_grob("Next morning stress from team passion mean and SD"))
+
+plots
+```
+Models for burnout
+```{r}
+model_3 <- lme(fixed = burnout.m ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_3)
+
+# Interaction
+model_3b <- lme(fixed = burnout.m ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_3b)
+
+# Likelihood check
+model_3r <- lme(fixed = burnout.m ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = burnout.m ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br)
+```
+> The model without the interaction is best but there are main effects for the meand and SD
+
+Plots for burnout:
+```{r}
+eff1 <- effect(c("sd.pas.d"),  model_3)
+eff2 <- effect(c("mean.pas.d"),  model_3)
+
+effdata1 <- as.data.frame(eff1)
+effdata2 <- as.data.frame(eff2)
+
+plot1 <- ggplot(effdata1, aes(x = sd.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion SD", y="Burnout (morning)") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion mean", y="Burnout (morning)") + theme_classic() + theme(text=element_text(size=12)) 
+
+plots <- ggarrange(plot1, plot2, ncol = 2, nrow = 1)
+plots <- annotate_figure(plots, top = text_grob("Next morning burnout from team passion mean and SD"))
+
+plots
+```
 
 ```{r}
 
 ```
-
-
