@@ -1,0 +1,138 @@
+---
+title: "Passion interaction SD and mean"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(nlme)
+library(lattice)
+library(skimr)
+library(ggplot2)
+library(effects)
+library(relativeVariability)
+library(multilevel)
+library(tidyr)
+library(psych)
+```
+
+## Prep
+
+Create measurement indicator (m) and calculate within-team average (mean.pas) and standard deviation (sd.pas) of passion (on each measurement occasion). Calculate also average per day (mean.pas.d) and sd per day (sd.pas.d). Create week-indicator (week)
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+
+d <- d[with(d, order(pid, day, type)),]
+
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+d$team <- as.factor(d$team)
+d$pid <- as.factor(d$pid)
+
+# There are 10 measurements with missings on passion, I delete these 
+d <- d %>%
+  filter(!is.na(s.pas))
+
+d <- d %>%
+  group_by(team, m) %>%
+  mutate(sd.pas = sd(s.pas),
+         mean.pas = mean(s.pas)) %>%
+  ungroup()
+
+# Passion SD and mean
+d <- d %>%
+  group_by(team, day) %>%
+  mutate(sd.pas.d = sd(s.pas),
+         mean.pas.d = mean(s.pas)) %>%
+  ungroup()
+
+# Week indicator
+d <- d %>%
+  mutate(week = case_when(
+    day > 0 & day < 8 ~ 1,
+    day > 7 & day < 15 ~2,
+    day > 14 & day < 22 ~3))
+
+# New day variable to indicate day of the week (1,2,3,4,5,6,7, 1,2,3,4,5,6,7 etc)
+d <- d %>%
+  mutate(day.new = case_when(
+    day == 1 | day == 8 | day == 15 ~ 1,
+    day == 2 | day == 9 | day == 16 ~ 2,
+    day == 3 | day == 10 | day == 17 ~ 3,
+    day == 4 | day == 11 | day == 18 ~ 4,
+    day == 5 | day == 12 | day == 19 ~ 5,
+    day == 6 | day == 13 | day == 20 ~ 6,
+    day == 7 | day == 14 ~ 7))
+```
+
+## Predicting emotional exhaustion
+
+Predicting emotional exhaustion (evening) from the interaction between daily team passion mean and SD:
+```{r}
+model_1 <- lme(fixed = s.ee ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1)
+
+# Interaction
+model_1b <- lme(fixed = s.ee ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_1b)
+
+# Likelihood check
+model_1r <- lme(fixed = s.ee ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_1br <- lme(fixed = s.ee ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1r, model_1br)
+```
+
+Plotting the interaction between passion SD and mean for higher and lower levels of the mean (+ and -2 SD)
+```{r}
+describe(d$mean.pas.d)
+#sd = 0.94 --> 2*0.94 = 1.88
+
+eff <- effect("sd.pas.d:mean.pas.d", xlevels = list(mean.pas.d = c(-1.88, 1.88)), model_1b)
+
+effdata <- as.data.frame(eff)
+
+effdata$mean.pas.d <- as.factor(effdata$mean.pas.d)
+
+plot <- ggplot(effdata, aes(x = sd.pas.d, y = fit, color = mean.pas.d, group = mean.pas.d)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, fill=mean.pas.d),alpha=0.3) +
+  labs(title = "Emotional exhaustion from team passion", x= "Within-team passion SD", y="Emotional exhaustion (individual)", color="Team passion intensity", fill="Team passion intensity") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("mean -2SD", "mean + 2SD")) +   scale_color_discrete(labels = c("mean -2SD", "mean + 2SD"))
+
+```
+
+```{r}
+plot
+```
+
+```{r}
+
+```
+
+
