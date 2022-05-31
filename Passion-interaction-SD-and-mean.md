@@ -216,7 +216,7 @@ plot
 ```
 
 ![](Passion-interaction-SD-and-mean_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
-## Next morning stress and burnout
+## Next morning stress (stress.m) and burnout (burnout.m)
 
 ``` r
 d <- d %>%
@@ -798,3 +798,276 @@ plots
 ```
 
 ![](Passion-interaction-SD-and-mean_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+## Next day working hours and workload
+
+``` r
+# Lead with three measurements (= next day)
+d <- d %>%
+  mutate(s.wl1.l = lead(s.wl1, n=3L),
+         s.wl2.l = lead(s.wl2, n=3L))
+
+# Select only evening measurements (doesn't matter for average team passion/sd but does for stress)
+
+d3 <- d %>%
+  filter(type == "e")
+```
+
+## Working hours
+
+``` r
+model_6 <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_6)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d3 
+    ##        AIC      BIC    logLik
+    ##   57581.68 57627.97 -28784.84
+    ## 
+    ## Random effects:
+    ##  Formula: ~1 | team
+    ##         (Intercept)
+    ## StdDev:   0.7994635
+    ## 
+    ##  Formula: ~1 | pid %in% team
+    ##         (Intercept) Residual
+    ## StdDev:    1.073041 1.276413
+    ## 
+    ## Fixed effects:  s.wl2.l ~ sd.pas.d + mean.pas.d 
+    ##                 Value  Std.Error    DF  t-value p-value
+    ## (Intercept) 10.708798 0.12532813 15736 85.44608  0.0000
+    ## sd.pas.d     0.024326 0.03518708 15736  0.69134  0.4894
+    ## mean.pas.d  -0.144808 0.01529549 15736 -9.46736  0.0000
+    ##  Correlation: 
+    ##            (Intr) sd.ps.
+    ## sd.pas.d   -0.559       
+    ## mean.pas.d -0.727  0.337
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##        Min         Q1        Med         Q3        Max 
+    ## -4.6298988 -0.3863784 -0.1305040  0.2089357  5.2142315 
+    ## 
+    ## Number of Observations: 16567
+    ## Number of Groups: 
+    ##          team pid %in% team 
+    ##           155           829
+
+``` r
+# Interaction
+model_6b <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit)
+
+summary(model_6b)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d3 
+    ##        AIC      BIC    logLik
+    ##   57588.99 57642.99 -28787.49
+    ## 
+    ## Random effects:
+    ##  Formula: ~1 | team
+    ##         (Intercept)
+    ## StdDev:    0.798448
+    ## 
+    ##  Formula: ~1 | pid %in% team
+    ##         (Intercept) Residual
+    ## StdDev:    1.073038  1.27646
+    ## 
+    ## Fixed effects:  s.wl2.l ~ sd.pas.d + mean.pas.d + sd.pas.d * mean.pas.d 
+    ##                         Value  Std.Error    DF  t-value p-value
+    ## (Intercept)         10.656134 0.19517755 15735 54.59713  0.0000
+    ## sd.pas.d             0.067110 0.12641814 15735  0.53086  0.5955
+    ## mean.pas.d          -0.133801 0.03484792 15735 -3.83956  0.0001
+    ## sd.pas.d:mean.pas.d -0.009287 0.02638082 15735 -0.35205  0.7248
+    ##  Correlation: 
+    ##                     (Intr) sd.ps. mn.ps.
+    ## sd.pas.d            -0.836              
+    ## mean.pas.d          -0.894  0.904       
+    ## sd.pas.d:mean.pas.d  0.767 -0.960 -0.899
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##        Min         Q1        Med         Q3        Max 
+    ## -4.6316577 -0.3863990 -0.1300143  0.2088408  5.2137638 
+    ## 
+    ## Number of Observations: 16567
+    ## Number of Groups: 
+    ##          team pid %in% team 
+    ##           155           829
+
+``` r
+# Likelihood check
+model_6r <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+model_6br <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_6r, model_6br)
+```
+
+    ##           Model df      AIC      BIC    logLik   Test   L.Ratio p-value
+    ## model_6r      1  6 57566.84 57613.13 -28777.42                         
+    ## model_6br     2  7 57568.71 57622.72 -28777.36 1 vs 2 0.1256863  0.7229
+
+> No significant interaction effect. There is only a mean effect for
+> average team passion: higher team passion predicts less hours worked
+> the next day.
+
+Plot for working hours:
+
+``` r
+eff2 <- effect(c("mean.pas.d"),  model_6)
+
+effdata2 <- as.data.frame(eff2)
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(title = "Next day hours worked predicted from team passion average", x= "Within-team passion mean", y="Hours worked next day") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2
+```
+
+![](Passion-interaction-SD-and-mean_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+## Workload
+
+``` r
+model_7 <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_7)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d3 
+    ##        AIC      BIC    logLik
+    ##   56720.96 56767.25 -28354.48
+    ## 
+    ## Random effects:
+    ##  Formula: ~1 | team
+    ##         (Intercept)
+    ## StdDev:   0.3826476
+    ## 
+    ##  Formula: ~1 | pid %in% team
+    ##         (Intercept) Residual
+    ## StdDev:   0.9300844 1.255139
+    ## 
+    ## Fixed effects:  s.wl1.l ~ sd.pas.d + mean.pas.d 
+    ##                 Value  Std.Error    DF   t-value p-value
+    ## (Intercept)  3.946171 0.10794686 15736  36.55661  0.0000
+    ## sd.pas.d     0.034496 0.03381868 15736   1.02002  0.3077
+    ## mean.pas.d  -0.161785 0.01491783 15736 -10.84507  0.0000
+    ##  Correlation: 
+    ##            (Intr) sd.ps.
+    ## sd.pas.d   -0.635       
+    ## mean.pas.d -0.826  0.346
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##         Min          Q1         Med          Q3         Max 
+    ## -4.01770259 -0.48196702 -0.06679893  0.28892453 38.99331450 
+    ## 
+    ## Number of Observations: 16567
+    ## Number of Groups: 
+    ##          team pid %in% team 
+    ##           155           829
+
+``` r
+# Interaction
+model_7b <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit)
+
+summary(model_7b)
+```
+
+    ## Linear mixed-effects model fit by REML
+    ##   Data: d3 
+    ##        AIC      BIC    logLik
+    ##   56728.41 56782.42 -28357.21
+    ## 
+    ## Random effects:
+    ##  Formula: ~1 | team
+    ##         (Intercept)
+    ## StdDev:   0.3831133
+    ## 
+    ##  Formula: ~1 | pid %in% team
+    ##         (Intercept) Residual
+    ## StdDev:   0.9301283 1.255169
+    ## 
+    ## Fixed effects:  s.wl1.l ~ sd.pas.d + mean.pas.d + sd.pas.d * mean.pas.d 
+    ##                         Value  Std.Error    DF   t-value p-value
+    ## (Intercept)          3.972460 0.18189630 15735 21.839145  0.0000
+    ## sd.pas.d             0.013183 0.12311481 15735  0.107080  0.9147
+    ## mean.pas.d          -0.167274 0.03401246 15735 -4.918009  0.0000
+    ## sd.pas.d:mean.pas.d  0.004621 0.02566735 15735  0.180046  0.8571
+    ##  Correlation: 
+    ##                     (Intr) sd.ps. mn.ps.
+    ## sd.pas.d            -0.877              
+    ## mean.pas.d          -0.938  0.906       
+    ## sd.pas.d:mean.pas.d  0.805 -0.962 -0.899
+    ## 
+    ## Standardized Within-Group Residuals:
+    ##         Min          Q1         Med          Q3         Max 
+    ## -4.01419178 -0.48184974 -0.06687005  0.28876436 38.99085100 
+    ## 
+    ## Number of Observations: 16567
+    ## Number of Groups: 
+    ##          team pid %in% team 
+    ##           155           829
+
+``` r
+# Likelihood check
+model_7r <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+model_7br <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_7r, model_7br)
+```
+
+    ##           Model df      AIC      BIC    logLik   Test   L.Ratio p-value
+    ## model_7r      1  6 56704.99 56751.28 -28346.49                         
+    ## model_7br     2  7 56706.96 56760.97 -28346.48 1 vs 2 0.0317693  0.8585
+
+> No significant interaction effect. There is only a mean effect for
+> average team passion: higher team passion predicts less workload the
+> next day.
+
+Plot for working hours:
+
+``` r
+eff2 <- effect(c("mean.pas.d"),  model_7)
+
+effdata2 <- as.data.frame(eff2)
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(title = "Next day workload predicted from team passion average", x= "Within-team passion mean", y="Workload next day") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2
+```
+
+![](Passion-interaction-SD-and-mean_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->

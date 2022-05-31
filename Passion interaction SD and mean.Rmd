@@ -132,7 +132,7 @@ plot <- ggplot(effdata, aes(x = sd.pas.d, y = fit, color = mean.pas.d, group = m
 ```{r}
 plot
 ```
-## Next morning stress and burnout
+## Next morning stress (stress.m) and burnout (burnout.m)
 
 ```{r}
 d <- d %>%
@@ -383,6 +383,116 @@ plots <- annotate_figure(plots, top = text_grob("Workload predicted from team pa
 
 plots
 ```
+## Next day working hours and workload
+
+```{r}
+# Lead with three measurements (= next day)
+d <- d %>%
+  mutate(s.wl1.l = lead(s.wl1, n=3L),
+         s.wl2.l = lead(s.wl2, n=3L))
+
+# Select only evening measurements (doesn't matter for average team passion/sd but does for stress)
+
+d3 <- d %>%
+  filter(type == "e")
+```
+
+## Working hours
+
+```{r}
+model_6 <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_6)
+
+# Interaction
+model_6b <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit)
+
+summary(model_6b)
+
+# Likelihood check
+model_6r <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+model_6br <- lme(fixed = s.wl2.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_6r, model_6br)
+```
+> No significant interaction effect. There is only a mean effect for average team passion: higher team passion predicts less hours worked the next day. 
+
+Plot for working hours:
+```{r}
+eff2 <- effect(c("mean.pas.d"),  model_6)
+
+effdata2 <- as.data.frame(eff2)
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(title = "Next day hours worked predicted from team passion average", x= "Within-team passion mean", y="Hours worked next day") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2
+```
+
+## Workload
+
+```{r}
+model_7 <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_7)
+
+# Interaction
+model_7b <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit)
+
+summary(model_7b)
+
+# Likelihood check
+model_7r <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+model_7br <- lme(fixed = s.wl1.l ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d3, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_7r, model_7br)
+```
+> No significant interaction effect. There is only a mean effect for average team passion: higher team passion predicts less workload the next day. 
+
+Plot for working hours:
+```{r}
+eff2 <- effect(c("mean.pas.d"),  model_7)
+
+effdata2 <- as.data.frame(eff2)
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(title = "Next day workload predicted from team passion average", x= "Within-team passion mean", y="Workload next day") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2
+```
+
 
 ```{r}
 
