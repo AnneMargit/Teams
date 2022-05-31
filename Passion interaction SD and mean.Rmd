@@ -263,6 +263,127 @@ plots <- annotate_figure(plots, top = text_grob("Next morning burnout from team 
 plots
 ```
 
+
+## Working hours
+
+Association between daily team average passion and SD and hours worked (s.wl2): 
+```{r}
+model_4 <- lme(fixed = s.wl2 ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_4)
+
+# Interaction
+model_4b <- lme(fixed = s.wl2 ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_4b)
+
+# Likelihood check
+model_4r <- lme(fixed = s.wl2 ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_4br <- lme(fixed = s.wl2 ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_4r, model_4br)
+```
+> There is no interaction effect between SD and team average passion. There are significant main effects: Higher team passion SD is associated with more hours worked, and higher team passion average is associated with less (!) hours worked
+
+Plots for working hours:
+```{r}
+eff1 <- effect(c("sd.pas.d"),  model_4)
+eff2 <- effect(c("mean.pas.d"),  model_4)
+
+effdata1 <- as.data.frame(eff1)
+effdata2 <- as.data.frame(eff2)
+
+plot1 <- ggplot(effdata1, aes(x = sd.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion SD", y="Hours worked") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion mean", y="Hours worked") + theme_classic() + theme(text=element_text(size=12)) 
+
+plots <- ggarrange(plot1, plot2, ncol = 2, nrow = 1)
+plots <- annotate_figure(plots, top = text_grob("Hours worked predicted from team passion mean and SD"))
+
+plots
+```
+
+## Workload
+
+Association between daily team average passion and SD and experienced workload (s.wl1): 
+```{r}
+model_5 <- lme(fixed = s.wl1 ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_5)
+
+# Interaction
+model_5b <- lme(fixed = s.wl1 ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit)
+
+summary(model_5b)
+
+# Likelihood check
+model_5r <- lme(fixed = s.wl1 ~ sd.pas.d + mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+model_5br <- lme(fixed = s.wl1 ~ sd.pas.d + mean.pas.d + sd.pas.d*mean.pas.d,
+                   random = ~1 | team/pid, 
+                   data = d, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_5r, model_5br)
+```
+> There is no interaction effect between SD and team average passion. There are significant main effects: Higher team passion SD is associated with lower workload, and higher team passion average is associated with lower workload
+
+Plots for workload:
+```{r}
+eff1 <- effect(c("sd.pas.d"),  model_5)
+eff2 <- effect(c("mean.pas.d"),  model_5)
+
+effdata1 <- as.data.frame(eff1)
+effdata2 <- as.data.frame(eff2)
+
+plot1 <- ggplot(effdata1, aes(x = sd.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion SD", y="Workload") + theme_classic() + theme(text=element_text(size=12)) 
+
+plot2 <- ggplot(effdata2, aes(x = mean.pas.d, y = fit)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se),alpha=0.3) +
+  labs(x= "Within-team passion mean", y="Workload") + theme_classic() + theme(text=element_text(size=12)) 
+
+plots <- ggarrange(plot1, plot2, ncol = 2, nrow = 1)
+plots <- annotate_figure(plots, top = text_grob("Workload predicted from team passion mean and SD"))
+
+plots
+```
+
 ```{r}
 
 ```
