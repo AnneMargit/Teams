@@ -209,7 +209,11 @@ plot <- ggplot(effdata, aes(x = s.pas.dev, y = fit, color = mean.pas.2, group = 
   geom_ribbon(aes(ymin=fit-se, ymax=fit+se, fill=mean.pas.2),alpha=0.3) +
   labs(title = "Next-morning stress from evening passion", x= "Difference score (individual - team)", y="Stress", color="Team passion average", fill="Team passion average") + theme_classic() + theme(text=element_text(size=12)) + 
   scale_fill_discrete(labels = c("mean -2SD", "mean + 2SD")) +   scale_color_discrete(labels = c("mean -2SD", "mean + 2SD"))
+
+plot
 ```
+
+![](Individual-vs.-team-average--difference-scores-_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ## Predicting next-morning stress from (previous) daily average passion
 
@@ -572,4 +576,8 @@ plot <- ggplot(effdata, aes(x = s.pas.dev.d, y = fit, color = mean.pas.3, group 
   geom_ribbon(aes(ymin=fit-se, ymax=fit+se, fill=mean.pas.3),alpha=0.3) +
   labs(title = "Next-morning burnout from previous day passion", x= "Difference score (individual - team)", y="Burnout", color="Team passion average", fill="Team passion average") + theme_classic() + theme(text=element_text(size=12)) + 
   scale_fill_discrete(labels = c("mean -2SD", "mean + 2SD")) +   scale_color_discrete(labels = c("mean -2SD", "mean + 2SD"))
+
+plot
 ```
+
+![](Individual-vs.-team-average--difference-scores-_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
