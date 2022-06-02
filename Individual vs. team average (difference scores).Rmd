@@ -1,0 +1,242 @@
+---
+title: "Individual vs. team average (difference scores)"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(nlme)
+library(lattice)
+library(skimr)
+library(ggplot2)
+library(effects)
+library(psych)
+```
+
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+```
+
+Team average excluding individual average (i.e., average of all team members except participant)
+```{r}
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+# Momentary team average excluding the reporting participant (mean.pas.2), i.e. average of all teambers except me
+d <- d %>%
+  group_by(team, day, type) %>%
+  mutate(mean.pas.2 = (sum(s.pas) - s.pas) / (team_size - 1)) %>%
+  ungroup()
+
+# Daily team average excluding the reporting participant (mean.pas.3)
+d <- d %>%
+  group_by(team, day) %>%
+  mutate(mean.pas.3 = mean(mean.pas.2)) %>%
+  ungroup()
+
+# Daily individual average
+d <- d %>%
+  group_by(day, pid) %>%
+  mutate(mean.pas.i = mean(s.pas)) %>%
+  ungroup()
+```
+
+Difference score passion (individual - team average) >0 means my score is greater than my team average)
+```{r}
+# Momentary (s.pas.dev)
+d <- d %>%
+  mutate(s.pas.dev = s.pas - mean.pas.2)
+
+# Daily (s.pas.dev.d)
+d <- d %>%
+  mutate(s.pas.dev.d = mean.pas.i - mean.pas.3)
+```
+
+Next morning stress (stress.m), burnout (burnout.m) and next day working hours (s.wl2.l) and workload (s.wl1.l)
+```{r}
+d <- d %>%
+  mutate(stress.m = lead(s.em1, n=1L),
+         burnout.m = lead(s.b2, 1L),
+         s.wl1.l = lead(s.wl1, n=3L),
+         s.wl2.l = lead(s.wl2, n=3L))
+
+# Select only evening measurements
+d2 <- d %>%
+  filter(type == "e")
+```
+
+## Predicting next-morning stress from (previous) evening passion
+```{r}
+model_1 <- lme(fixed = stress.m ~ s.pas.dev + mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_1)
+
+# Interaction
+model_1b <- lme(fixed = stress.m ~ s.pas.dev + mean.pas.2 + s.pas.dev*mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_1b)
+
+# Likelihood check
+model_1r <- lme(fixed = stress.m ~ s.pas.dev + mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_1br <- lme(fixed = stress.m ~ s.pas.dev + mean.pas.2 + s.pas.dev*mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1r, model_1br)
+```
+> A positive deviation of the team passion level (scoring higher) at the end of the day predicts lower stress the next morning. There is a significant interaction effect but too small to be important. 
+
+Plots for stress (evening passion -> next morning stress):
+```{r}
+describe(d$mean.pas.2)
+#sd = 1.07 --> 2*1.07 = 2.14
+
+eff <- effect("s.pas.dev:mean.pas.2", xlevels = list(mean.pas.2 = c(-2.14, 2.14)), model_1b)
+
+effdata <- as.data.frame(eff)
+
+effdata$mean.pas.2 <- as.factor(effdata$mean.pas.2)
+
+plot <- ggplot(effdata, aes(x = s.pas.dev, y = fit, color = mean.pas.2, group = mean.pas.2)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, fill=mean.pas.2),alpha=0.3) +
+  labs(title = "Next-morning stress from evening passion", x= "Difference score (individual - team)", y="Stress", color="Team passion average", fill="Team passion average") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("mean -2SD", "mean + 2SD")) +   scale_color_discrete(labels = c("mean -2SD", "mean + 2SD"))
+```
+
+## Predicting next-morning stress from (previous) daily average passion
+```{r}
+model_2 <- lme(fixed = stress.m ~ s.pas.dev.d + mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+# Interaction
+model_2b <- lme(fixed = stress.m ~ s.pas.dev.d + mean.pas.3 + s.pas.dev.d*mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_2b)
+
+# Likelihood check
+model_2r <- lme(fixed = stress.m ~ s.pas.dev.d + mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_2br <- lme(fixed = stress.m ~ s.pas.dev.d + mean.pas.3 + s.pas.dev.d*mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2r, model_2br)
+```
+
+> Results are similar but more pronounced. If my daily passion average is higher than my team, my next morning stress is lower. Effect is slighly stronger when team passion average is higher.
+
+## Predicting next-morning burnout from (previous) evening passion
+```{r}
+model_3 <- lme(fixed = burnout.m ~ s.pas.dev + mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_3)
+
+# Interaction
+model_3b <- lme(fixed = burnout.m ~ s.pas.dev + mean.pas.2 + s.pas.dev*mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_3b)
+
+# Likelihood check
+model_3r <- lme(fixed = burnout.m ~ s.pas.dev + mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = burnout.m ~ s.pas.dev + mean.pas.2 + s.pas.dev*mean.pas.2,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br)
+```
+> Results are similar to the results found for stress: If my evening passion is higher than my team's average, my next morning burnout is lower. Effect is slighly stronger when team passion average is lower
+
+## Predicting next-morning burnout from (previous) daily average passion
+```{r}
+model_4 <- lme(fixed = burnout.m ~ s.pas.dev.d + mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_4)
+
+# Interaction
+model_4b <- lme(fixed = burnout.m ~ s.pas.dev.d + mean.pas.3 + s.pas.dev.d*mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit)
+
+summary(model_4b)
+
+# Likelihood check
+model_4r <- lme(fixed = burnout.m ~ s.pas.dev.d + mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+model_4br <- lme(fixed = burnout.m ~ s.pas.dev.d + mean.pas.3 + s.pas.dev.d*mean.pas.3,
+                   random = ~1 | team/pid, 
+                   data = d2, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_4r, model_4br)
+```
+
+> Once again similar results: looking at daily averages, if my daily passion average is higher than my team, my burnout levels are lower the next morning. Effect is slighly stronger when team passion average is lower.
+
+Plots for burnout (daily passion -> next morning burnout):
+```{r}
+describe(d$mean.pas.3)
+#sd = 0.94 --> 2*0.94 = 1.88
+
+eff <- effect("s.pas.dev.d:mean.pas.3", xlevels = list(mean.pas.3 = c(-1.88, 1.88)), model_4b)
+
+effdata <- as.data.frame(eff)
+
+effdata$mean.pas.3 <- as.factor(effdata$mean.pas.3)
+
+plot <- ggplot(effdata, aes(x = s.pas.dev.d, y = fit, color = mean.pas.3, group = mean.pas.3)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  geom_ribbon(aes(ymin=fit-se, ymax=fit+se, fill=mean.pas.3),alpha=0.3) +
+  labs(title = "Next-morning burnout from previous day passion", x= "Difference score (individual - team)", y="Burnout", color="Team passion average", fill="Team passion average") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("mean -2SD", "mean + 2SD")) +   scale_color_discrete(labels = c("mean -2SD", "mean + 2SD"))
+```
