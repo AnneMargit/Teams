@@ -1,0 +1,262 @@
+---
+title: "Anomalies in passion team average"
+output: github_document
+---
+
+> Detecting anomalies in average team passion (momentary mean of the team)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(anomaly)
+library(tidyverse)
+```
+
+```{r, message = F, warning = F}
+load(file="d.Rdata")
+```
+
+Team average passion
+```{r}
+d <- d %>%
+  group_by(pid) %>%
+  mutate(m = 1:n()) %>%
+  ungroup()
+
+# There are 10 measurements with missings on passion, I delete these 
+d <- d %>%
+  filter(!is.na(s.pas))
+
+# Team passion average and SD per measurement
+d <- d %>%
+  group_by(m, team) %>%
+  mutate(sd.pas = sd(s.pas, na.rm=TRUE),
+         mean.pas = mean(s.pas, na.rm=TRUE)) %>%
+  ungroup()
+```
+
+Select one team to try out
+```{r}
+d_1010 <- d %>%
+  filter(team == 1010) 
+
+# Select data at team-level 
+d_1010.2 <-d_1010 %>%
+  group_by(m) %>%
+  slice(1) %>%
+  ungroup()
+```
+
+CAPA: Anomalies in momentary team average. For the collective anomalies, I select a period of 3 measurement points (1 day) as the minimum and 15 points (5 days). 
+```{r}
+res.1010 <- capa.uv(d_1010.2$mean.pas, min_seg_len = 6, max_seg_len = 15, type = "robustmean")
+
+# Select collective anomalies
+col.1010 <- collective_anomalies(res.1010)
+                    
+head(col.1010)
+plot(res.1010)
+```
+
+Now for all teams. Create dataframe to store start and end of anomalies + variable that indicates whether measurement point falls in the anomaly period (section).  
+```{r}
+d_t <-d %>%
+  group_by(team, m) %>%
+  slice(1) %>%
+  ungroup()
+
+df <- d_t[order(d_t$m),] 
+df <- df %>%
+  select(team, m, mean.pas)
+
+df['start'] <- NA
+df['end'] <- NA 
+df['section'] <- NA
+```
+
+The capa.uv function resulted in errors for some teams:
+```{r}
+x <- df
+for (i in unique(x$team)) {
+  tryCatch({
+    res.capa <-
+      capa.uv(
+        x$mean.pas[x$team == i],
+        min_seg_len = 6,
+        max_seg_len = 15,
+        type = "robustmean"
+      )
+    res <- collective_anomalies(res.capa)
+    cat("For team", i, "'Res' has", nrow(res), "rows.\n")
+  }, error = function(e) {
+    message("ERROR: Team ", i, ": ", conditionMessage(e))
+  })
+}
+```
+
+Errors for the following teams: 1024, 1025, 1027, 1028, 1030, 1031, 1032, 1033, 1034, 1036, 1051, 1055, 1056, 1058, 1072, 1073, 1077, 1084, 1086, 1090, 1092, 1097, 1098, 1099, 1117, 1151, 2201.
+
+Examine if this is due to low variance (robust MAD):
+```{r}
+# 1024 as example
+x <- df
+i <- 1024 # team
+x$mean.pas[x$team == i] # look at raw data: lots of scores are the same
+median(x$mean.pas[x$team == i]) # check robust central tendency
+mad(x$mean.pas[x$team == i]) # check robust variance: MAD is 0 
+rm(x, i, res.capa, res)
+
+# Low variance in mean scores happens in all teams in which I get error messages:
+df %>%
+  group_by(team) %>%
+  dplyr::summarise(mad = mad(mean.pas)) %>%
+  arrange(mad)
+
+# I remove those teams
+df <- df %>%
+  group_by(team) %>%
+  dplyr::mutate(mad = mad(mean.pas))
+
+df <- df %>%
+  filter(mad > 0)
+
+df <- df %>%
+  select(-mad)
+
+n_distinct(df$team)
+# This leaves 128 teams
+```
+
+
+```{r, warning=F}
+get.an.Ignore <- function(x) {
+  # FOR TESTING:
+  # x = df
+  # i = 1024
+  
+  for (i in unique(x$team)) {
+    # reset for error handling
+    res.capa <- NA
+    
+    tryCatch({
+      res.capa <-
+        capa.uv(
+          x$mean.pas[x$team == i],
+          min_seg_len = 6,
+          max_seg_len = 15,
+          type = "robustmean"
+        )
+      res <- collective_anomalies(res.capa)
+      cat("Team", i, "has", nrow(res), "anomalous segments.\n")
+    }, error = function(e) {
+      message("ERROR: Team ", i, ": ", conditionMessage(e))
+    })
+    
+    if (is.na(res.capa)) { # If error detected
+      x[x$team == i,] <-
+        x %>%
+        filter(team == i) %>%
+        mutate(start = NaN, # set to NaN to distinguish it from unprocessed or working values
+               end = NaN) # set to NaN to distinguish it from unprocessed or working values
+      
+    } else if (nrow(res) > 0) { # If anomaly detected
+      x[x$team == i,] <-
+        x %>%
+        filter(team == i) %>%
+        mutate(start = ifelse(m %in% res$start, 1, 0),
+               end = ifelse(m %in% res$end, 1, 0))
+      
+    } else { # If no anomaly detected
+      x[x$team == i,] <-
+        x %>%
+        filter(team == i) %>%
+        mutate(start = -99, # set to -99 to distinguish it from unprocessed NAs could be set to 0 or NA instead
+               end = -99) # set to -99 to distinguish it from unprocessed NAs could be set to 0 or NA instead
+    }
+  }
+  return(x)
+}
+AnIgnoreError <- get.an.Ignore(df)
+
+```
+
+I added three variables to the dataframe to indicate whether a measurement point was a start of an anomaly (start), end (end), and it is in the anomaly period (section):
+
+```{r, warning = F}
+get.an.Section.Ignore <- function(x) {
+  # FOR TESTING:
+  # x = df
+  # i = 1010
+  
+  for (i in unique(x$team)) {
+    # reset for error handling
+    res.capa <- NA
+    
+    tryCatch({
+      res.capa <-
+        capa.uv(
+          x$mean.pas[x$team == i],
+          min_seg_len = 6,
+          max_seg_len = 15,
+          type = "robustmean"
+        )
+      res <- collective_anomalies(res.capa)
+      cat("Team", i, "has", nrow(res), "anomalous segments.\n")
+    }, error = function(e) {
+      message("ERROR: Team ", i, ": ", conditionMessage(e))
+    })
+    
+    if (is.na(res.capa)) { # If error detected
+      x[x$team == i,] <-
+        x %>%
+        filter(team == i) %>%
+        mutate(start = NaN, # set to NaN to distinguish it from unprocessed or working values
+               end = NaN, # set to NaN to distinguish it from unprocessed or working values
+               section = NaN) # set to NaN to distinguish it from unprocessed or working values
+      
+    } else if (nrow(res) > 0) { # If anomaly detected
+      
+      anomalySection <- mapply(seq, res$start, res$end, SIMPLIFY = FALSE) %>% unlist
+        
+      x[x$team == i,] <-
+        x %>%
+        filter(team == i) %>%
+        mutate(start = ifelse(m %in% res$start, 1, 0),
+               end = ifelse(m %in% res$end, 1, 0),
+               section = ifelse(m %in% anomalySection, 1, 0))
+      
+    } else { # If no anomaly detected
+      x[x$team == i,] <-
+        x %>%
+        filter(team == i) %>%
+        mutate(start = -99, # set to -99 to distinguish it from unprocessed NAs could be set to 0 or NA instead
+               end = -99, # set to -99 to distinguish it from unprocessed NAs could be set to 0 or NA instead
+               section = -99) # set to -99 to distinguish it from unprocessed NAs could be set to 0 or NA instead
+    }
+  }
+  return(x)
+}
+
+anomalies <- get.an.Section.Ignore(df) %>% arrange(team)
+```
+
+There are several teams with no anomalies (indicated with -99), how many:
+```{r}
+no.anomalies <- anomalies %>%
+  filter(start == -99)
+
+no.anomalies %>% ungroup() %>% dplyr::summarise(n = n_distinct(team))
+
+# 40 teams without anomalies
+# 128 - 40 = 88 teams have an anomaly in their average passion
+```
+
+```{r}
+d <- d %>%
+  left_join(anomalies, by = c("team", "m", "mean.pas"))
+```
