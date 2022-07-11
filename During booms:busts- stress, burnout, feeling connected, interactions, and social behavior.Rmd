@@ -1,0 +1,336 @@
+---
+title: "During booms/busts: stress, burnout, feeling connected, interactions, and social behavior"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(anomaly)
+library(tidyverse)
+library(skimr)
+library(nlme)
+library(ggplot2)
+library(effects)
+library(psych)
+```
+
+```{r, message = F, warning = F}
+load(file="d.an.Rdata")
+```
+
+## Stress during boom/busts compared to other times
+
+s.jd1	This afternoon, very few stressful things happened to me at work.
+```{r}
+## Boom
+model_1 <- lme(fixed = s.jd1 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit)
+
+summary(model_1)
+
+# Bust
+model_1b <- lme(fixed = s.jd1 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit) 
+
+summary(model_1b)
+```
+
+> During booms, participants agreed more with 'very few stressful things happened'. During busts, less agreement
+
+s.b2	How burned out do you feel right now?
+```{r}
+## Boom
+model_2 <- lme(fixed = s.b2 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit)
+
+summary(model_2)
+
+# Bust
+model_2b <- lme(fixed = s.b2 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit) 
+
+summary(model_2b)
+```
+
+> Participants felt less burned out during booms and more during busts
+
+s.jd2	This afternoon, I felt bothered or upset because of my job.
+```{r}
+## Boom
+model_3 <- lme(fixed = s.jd2 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_3)
+
+# Bust
+model_3b <- lme(fixed = s.jd2 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_3b)
+```
+
+> Participants felt less bothered by things during booms and more during busts
+
+s.jd3	This afternoon, I felt a great deal of stress because of my job.
+```{r}
+## Boom
+model_4 <- lme(fixed = s.jd3 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_4)
+
+# Bust
+model_4b <- lme(fixed = s.jd3 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_4b)
+```
+
+> Participants felt less stressed during booms and more stressed during busts
+
+s.jd4	This afternoon, I was under constant time pressure due to a heavy workload.
+```{r}
+## Boom
+model_5 <- lme(fixed = s.jd4 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_5)
+
+# Bust
+model_5b <- lme(fixed = s.jd4 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_5b)
+```
+
+> Participants felt less time pressured during booms and more during busts
+
+## Interactions with team-mates during booms/busts
+
+s.ip	Please circle all of the teammates who you interacted with this afternoon.
+Total = s.ip_1 + s.ip_2 + s.ip_3 + s.ip_4 + s.ip_5 + s.ip_6 + s.ip_7
+```{r}
+d.an <- d.an %>%
+  dplyr::mutate(s.ip.t = rowSums(across(c(s.ip_1, s.ip_2, s.ip_3, s.ip_4, s.ip_5, s.ip_6, s.ip_7)), na.rm=T))
+                
+## Boom
+model_6 <- lme(fixed = s.ip.t ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_6)
+
+# Bust
+model_6b <- lme(fixed = s.ip.t ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_6b)
+```
+
+> Participants did not interact with more or fewer team mates during booms/busts
+
+s.il	Approximately how many minutes did you spend in interactions with each team member this afternoon?
+```{r}
+# Total number of minutes
+d.an <- d.an %>%
+  dplyr::mutate(s.il.t = rowSums(across(c(s.il_1, s.il_2, s.il_3, s.il_4, s.il_5, s.il_6, s.il_7)), na.rm=T))
+
+# There are some participants who said they didn't interact with anyone (s.ip.t = 0) but nonetheless said they interacted X number of minutes in total. I set the number of minutes to 0 for these participants (78 measurements). 
+
+d.an <- d.an %>%
+  mutate(s.il.t = ifelse(s.ip.t == 0, 0, s.il.t))
+
+# Mean number of minutes per team mate
+d.an <- d.an %>%
+  dplyr::mutate(s.il.m = s.il.t / s.ip.t)
+
+d.an$s.il.m[is.na(d.an$s.il.m)] <- 0 
+
+## Boom
+model_7 <- lme(fixed = s.il.m ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_7)
+
+# Bust
+model_7b <- lme(fixed = s.il.m ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_7b)
+```
+
+> Participants had longer interactions during booms and even longer interactions during busts
+
+s.ie	How much did you enjoy interacting with each team member this afternoon? 
+```{r}
+# Total enjoyment
+d.an <- d.an %>%
+  dplyr::mutate(s.ie.t = rowSums(across(c(s.ie_1, s.ie_2, s.ie_3, s.ie_4, s.ie_5, s.ie_6, s.ie_7)), na.rm=T))
+
+# There are some participants who said they didn't interact with anyone (s.ip.t = 0) but nonetheless said they enjoyed the interaction. I set the number of minutes to 0 for these participants (78 measurements). 
+
+d.an <- d.an %>%
+  mutate(s.ie.t = ifelse(s.ip.t == 0, 0, s.ie.t))
+
+# Mean number of minutes per team mate
+d.an <- d.an %>%
+  dplyr::mutate(s.ie.m = s.ie.t / s.ip.t)
+
+d.an$s.ie.m[is.na(d.an$s.ie.m)] <- 0 
+
+## Boom
+model_8 <- lme(fixed = s.ie.m ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_8)
+
+# Bust
+model_8b <- lme(fixed = s.ie.m ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_8b)
+```
+
+> Participants enjoyed interactions more during booms and less during busts
+
+## Social behavior: how rude, kind, gregarious, and talkative were participants during booms/busts?
+
+s.ps1	How rude were you to your teammates this morning/afternoon?
+```{r}
+## Boom
+model_9 <- lme(fixed = s.ps1 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_9)
+
+# Bust
+model_9b <- lme(fixed = s.ps1 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_9b)
+```
+
+> Participants were less rude to team mates during booms and more during busts
+
+s.ps2	How gregarious were you around your teammates this morning?
+```{r}
+## Boom
+model_10 <- lme(fixed = s.ps2 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_10)
+
+# Bust
+model_10b <- lme(fixed = s.ps2 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_10b)
+```
+
+> Participants were more gregarious to team mates during booms and less during busts
+
+s.ps3	How kind, considerate were you to your teammates this morning? 
+```{r}
+## Boom
+model_11 <- lme(fixed = s.ps3 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_11)
+
+# Bust
+model_11b <- lme(fixed = s.ps3 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_11b)
+```
+
+> Participants were more kind and considerate to team mates during booms and less during busts
+
+s.ps4	How talkative were you around your teammates this morning?
+```{r}
+## Boom
+model_12 <- lme(fixed = s.ps4 ~ boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_12)
+
+# Bust
+model_12b <- lme(fixed = s.ps4 ~ bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim")) 
+
+summary(model_12b)
+```
+
+> Participants were more talkative during booms and less during busts
+
+s.c	How connected do you feel with the people on your team right now? 
+s.b2	How burned out do you feel right now?
+s.jd1	This afternoon, very few stressful things happened to me at work.
+s.jd2	This afternoon, I felt bothered or upset because of my job.
+s.jd3	This afternoon, I felt a great deal of stress because of my job.
+s.jd4	This afternoon, I was under constant time pressure due to a heavy workload.
+
+
+s.ps1	How rude were you to your teammates this morning?
+s.ps2	How gregarious were you around your teammates this morning?
+s.ps3	How kind, considerate were you to your teammates this morning? 
+s.ps4	How talkative were you around your teammates this morning?
+
+
+s.ip	Please circle all of the teammates who you interacted with this afternoon.
+Total = s.ip_1 + s.ip_2 + s.ip_3 + s.ip_4 + s.ip_5 + s.ip_6 + s.ip_7
+s.im	How did you primarily interact with each team member this afternoon?
+s.il	Approximately how many minutes did you spend in interactions with each team member this afternoon?
+s.ie	How much did you enjoy interacting with each team member this afternoon? 
