@@ -1,0 +1,215 @@
+---
+title: "Future stress and burnout from individual passion and booms and busts in team level passion"
+output: github_document
+---
+
+Does individual passion predict future burnout and stress? Does it matter if there was a boom or bust in team level passion (interaction effect individual level passion * team level passion boom/bust)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(anomaly)
+library(tidyverse)
+library(skimr)
+library(nlme)
+library(ggplot2)
+library(effects)
+library(psych)
+```
+
+Load anomaly data 
+```{r, message = F, warning = F}
+load(file="d.an.Rdata")
+```
+
+Lead stress and burnout (next measurement occasion)
+```{r}
+d.an <- d.an %>%
+  mutate(stress.l = lead(s.em1, n=1L),
+         burnout.l = lead(s.b2, n=1L))
+```
+
+Stress predicted by individual-level passion and team-level passion boom 
+```{r}
+# Likelihood check
+model_1r <- lme(fixed = stress.l ~ s.pas,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_1br <- lme(fixed = stress.l ~ s.pas + boom + s.pas*boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1r, model_1br)
+
+## Second model is best (with interaction)
+
+# Interaction with boom 
+model_1b <- lme(fixed = stress.l ~ s.pas + boom + s.pas*boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_1b)
+```
+
+> Higher individual passion predicts lower stress next measurement (main effect). Relationship between passion and next-measurement stress is less strong if this occurs following a boom (interaction). 
+
+Plots for stress (individual passion -> future stress + BOOM):
+```{r}
+eff <- effect("s.pas:boom", xlevels = list(boom = c(0, 1)), model_1b)
+
+effdata <- as.data.frame(eff)
+
+effdata$boom <- as.factor(effdata$boom)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = boom, group = boom)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Next measurement stress", x= "Individual passion", y="Stress (next measurement)", color="Following a team passion boom?", fill="Following a team passion boom") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("No boom", "Boom")) +   scale_color_discrete(labels = c("No boom", "Boom"))
+
+plot
+```
+
+Predicting future burnout from previous passion + BOOM
+```{r}
+# Likelihood check
+model_2r <- lme(fixed = burnout.l ~ s.pas,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_2br <- lme(fixed = burnout.l ~ s.pas + boom + s.pas*boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2r, model_2br)
+
+## Second model with interaction is best
+
+## Predicting future burnout from previous passion + interaction with boom 
+model_2b <- lme(fixed = burnout.l ~ s.pas + boom + s.pas*boom,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit)
+
+summary(model_2b)
+```
+
+> Higher individual passion predicts lower burnout next measurement (main effect). Burnout is lower following a boom (main effect). Relationship between passion and next-measurement burnout is less strong if this occurs following a boom (interaction). 
+
+
+Plots for burnout (individual passion -> future burnout + BOOM):
+```{r}
+eff <- effect("s.pas:boom", xlevels = list(boom = c(0, 1)), model_2b)
+
+effdata <- as.data.frame(eff)
+
+effdata$boom <- as.factor(effdata$boom)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = boom, group = boom)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Next measurement burnout", x= "Individual passion", y="Burnout", color="Following a team passion boom?", fill="Following a team passion boom") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("No boom", "Boom")) +   scale_color_discrete(labels = c("No boom", "Boom"))
+
+plot
+```
+
+Stress predicted by individual-level passion and team-level passion BUST 
+```{r}
+# Likelihood check
+model_3r <- lme(fixed = stress.l ~ s.pas,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = stress.l ~ s.pas + bust + s.pas*bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br)
+
+## Second model is best
+
+## Predicting future stress from previous passion + interaction with bust 
+model_3b <- lme(fixed = stress.l ~ s.pas + bust + s.pas*bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_3b)
+```
+
+> Higher individual passion predicts lower stress next measurement (main effect). Stress is higher following a team passion bust. Relationship between passion and next-measurement stress is stronger if this occurs following a bust (interaction). 
+
+Plots for stress (individual passion -> future stress + BUST):
+```{r}
+eff <- effect("s.pas:bust", xlevels = list(bust = c(0, 1)), model_3b)
+
+effdata <- as.data.frame(eff)
+
+effdata$bust <- as.factor(effdata$bust)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = bust, group = bust)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Next-measurement stress", x= "Individual passion", y="stress", color="Following a team passion bust?", fill="Following a team passion bust?") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("No bust", "Bust")) +   scale_color_discrete(labels = c("No bust", "Bust"))
+
+plot
+```
+
+Burnout predicted by individual-level passion and team-level passion BUST 
+```{r}
+# Likelihood check
+model_4r <- lme(fixed = burnout.l ~ s.pas,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_4br <- lme(fixed = burnout.l ~ s.pas + bust + s.pas*bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_4r, model_4br)
+
+## Second model is best
+
+## Predicting next-measurement burnout from previous passion + interaction with bust 
+model_4b <- lme(fixed = burnout.l ~ s.pas + bust + s.pas*bust,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_4b)
+```
+
+> Higher individual passion predicts lower burnout next measurement (main effect). Burnout is higher following a bust. Relationship between passion and next-measurement burnout is stronger if this occurs following a bust (interaction). 
+
+Plots for burnout (individual passion -> next measurement burnout + BUST):
+```{r}
+eff <- effect("s.pas:bust", xlevels = list(bust = c(0, 1)), model_4b)
+
+effdata <- as.data.frame(eff)
+
+effdata$bust <- as.factor(effdata$bust)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = bust, group = bust)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Next-measurement burnout", x= "Individual passion", y="Burnout", color="Following a team passion bust?", fill="Following a team passion bust?") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("No bust", "Bust")) +   scale_color_discrete(labels = c("No bust", "Bust"))
+
+plot
+```
