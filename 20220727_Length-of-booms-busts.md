@@ -3,8 +3,7 @@ Length of booms/busts
 
 Comparing short and long booms/busts Booms/busts can be between 3 and 9
 measurements long. I recoded length of 6 and higher as long (so 6,7,8 or
-9) with 2, and below 6 as short (so 3, 4, or 5) with 1, periods with no
-booms/busts as 0 (variable = length.boom.d or length.bust.d)
+9) with 2, and below 6 as short (so 3, 4, or 5) with 1.
 
 I created dummy variables to indicate whether the measurement occured
 after a long or short boom/bust. This is the column after.boom.length.d
@@ -51,30 +50,30 @@ summary(model_1)
 
     ## Linear mixed-effects model fit by REML
     ##   Data: d.an 
-    ##       AIC      BIC    logLik
-    ##   10359.4 10389.03 -5174.698
+    ##        AIC      BIC    logLik
+    ##   11025.68 11055.63 -5507.838
     ## 
     ## Random effects:
     ##  Formula: ~1 | team
     ##         (Intercept) Residual
-    ## StdDev:    0.683223 1.531134
+    ## StdDev:   0.6917398 1.524611
     ## 
     ## Fixed effects:  s.em1 ~ after.boom.length.d 
     ##                          Value  Std.Error   DF   t-value p-value
-    ## (Intercept)          2.7100157 0.10769667 2720 25.163412   0e+00
-    ## after.boom.length.d1 0.2444800 0.07200162 2720  3.395480   7e-04
-    ## after.boom.length.d2 0.5440619 0.08672111 2720  6.273696   0e+00
+    ## (Intercept)          2.7115912 0.10711163 2905 25.315562  0.0000
+    ## after.boom.length.d1 0.2145712 0.06957167 2905  3.084176  0.0021
+    ## after.boom.length.d2 0.5330190 0.08421872 2905  6.328984  0.0000
     ##  Correlation: 
     ##                      (Intr) af...1
-    ## after.boom.length.d1 -0.283       
-    ## after.boom.length.d2 -0.152  0.158
+    ## after.boom.length.d1 -0.261       
+    ## after.boom.length.d2 -0.144  0.145
     ## 
     ## Standardized Within-Group Residuals:
     ##        Min         Q1        Med         Q3        Max 
-    ## -2.1451722 -0.7299547 -0.1858405  0.6422382  3.1992071 
+    ## -2.1601796 -0.7242714 -0.1773803  0.6516410  3.2111597 
     ## 
-    ## Number of Observations: 2771
-    ## Number of Groups: 49
+    ## Number of Observations: 2957
+    ## Number of Groups: 50
 
 > Stress is higher after a long boom than after a short boom
 
@@ -92,35 +91,35 @@ summary(model_2)
     ## Linear mixed-effects model fit by REML
     ##   Data: d.an 
     ##        AIC      BIC    logLik
-    ##   10233.59 10269.15 -5110.796
+    ##   10852.01 10887.95 -5420.003
     ## 
     ## Random effects:
     ##  Formula: ~1 | team
     ##         (Intercept)
-    ## StdDev:   0.4951967
+    ## StdDev:    0.484831
     ## 
     ##  Formula: ~1 | pid %in% team
     ##         (Intercept) Residual
-    ## StdDev:   0.9204454 1.403811
+    ## StdDev:   0.9211775 1.390897
     ## 
     ## Fixed effects:  s.b2 ~ after.boom.length.d 
     ##                          Value  Std.Error   DF   t-value p-value
-    ## (Intercept)          2.7770945 0.10024250 2509 27.703763       0
-    ## after.boom.length.d1 0.3019797 0.06604739 2509  4.572167       0
-    ## after.boom.length.d2 0.5855631 0.07953066 2509  7.362734       0
+    ## (Intercept)          2.7804710 0.09760554 2690 28.486815       0
+    ## after.boom.length.d1 0.3013329 0.06347283 2690  4.747431       0
+    ## after.boom.length.d2 0.5870051 0.07683827 2690  7.639489       0
     ##  Correlation: 
     ##                      (Intr) af...1
-    ## after.boom.length.d1 -0.278       
-    ## after.boom.length.d2 -0.149  0.157
+    ## after.boom.length.d1 -0.261       
+    ## after.boom.length.d2 -0.144  0.145
     ## 
     ## Standardized Within-Group Residuals:
     ##         Min          Q1         Med          Q3         Max 
-    ## -3.16472889 -0.63758920 -0.04643264  0.59928997  3.07855670 
+    ## -3.20109708 -0.63528793 -0.06359526  0.58476679  3.10721018 
     ## 
-    ## Number of Observations: 2771
+    ## Number of Observations: 2957
     ## Number of Groups: 
     ##          team pid %in% team 
-    ##            49           260
+    ##            50           265
 
 > Burnout is higher after a long boom than after a short boom
 
@@ -139,36 +138,36 @@ summary(model_3)
 
     ## Linear mixed-effects model fit by REML
     ##   Data: d.an 
-    ##        AIC      BIC    logLik
-    ##   24326.55 24366.88 -12157.27
+    ##        AIC     BIC    logLik
+    ##   25713.23 25753.9 -12850.61
     ## 
     ## Random effects:
     ##  Formula: ~1 | team
     ##         (Intercept)
-    ## StdDev:   0.4408671
+    ## StdDev:   0.4570556
     ## 
     ##  Formula: ~1 | pid %in% team
     ##         (Intercept) Residual
-    ## StdDev:   0.6291071 1.670857
+    ## StdDev:   0.6215473 1.671482
     ## 
     ## Fixed effects:  s.em1 ~ after.bust.length.d 
     ##                          Value  Std.Error   DF   t-value p-value
-    ## (Intercept)           4.179656 0.06324386 5646  66.08794       0
-    ## after.bust.length.d1 -1.357323 0.05261501 5646 -25.79725       0
-    ## after.bust.length.d2 -1.416805 0.06537477 5646 -21.67205       0
+    ## (Intercept)           4.177249 0.06345863 5982  65.82634       0
+    ## after.bust.length.d1 -1.372527 0.05034397 5982 -27.26299       0
+    ## after.bust.length.d2 -1.388100 0.06453320 5982 -21.50986       0
     ##  Correlation: 
     ##                      (Intr) af...1
-    ## after.bust.length.d1 -0.316       
-    ## after.bust.length.d2 -0.191  0.136
+    ## after.bust.length.d1 -0.311       
+    ## after.bust.length.d2 -0.189  0.149
     ## 
     ## Standardized Within-Group Residuals:
     ##        Min         Q1        Med         Q3        Max 
-    ## -2.4784948 -0.7115962 -0.1047859  0.6795173  3.4228276 
+    ## -2.4792823 -0.7066123 -0.1031516  0.6778554  3.4309828 
     ## 
-    ## Number of Observations: 6143
+    ## Number of Observations: 6495
     ## Number of Groups: 
     ##          team pid %in% team 
-    ##            91           495
+    ##            94           511
 
 > Stress is slightly lower after a long bust than after a short bust.
 
@@ -186,35 +185,35 @@ summary(model_4)
     ## Linear mixed-effects model fit by REML
     ##   Data: d.an 
     ##        AIC      BIC    logLik
-    ##   24700.14 24740.47 -12344.07
+    ##   26043.94 26084.61 -13015.97
     ## 
     ## Random effects:
     ##  Formula: ~1 | team
     ##         (Intercept)
-    ## StdDev:   0.4670573
+    ## StdDev:   0.4655157
     ## 
     ##  Formula: ~1 | pid %in% team
     ##         (Intercept) Residual
-    ## StdDev:   0.6301947 1.724829
+    ## StdDev:    0.636292 1.715422
     ## 
     ## Fixed effects:  s.b2 ~ after.bust.length.d 
     ##                          Value  Std.Error   DF   t-value p-value
-    ## (Intercept)           4.201785 0.06583599 5645  63.82201       0
-    ## after.bust.length.d1 -1.385759 0.05433866 5645 -25.50227       0
-    ## after.bust.length.d2 -1.334222 0.06750759 5645 -19.76404       0
+    ## (Intercept)           4.206579 0.06481919 5981  64.89712       0
+    ## after.bust.length.d1 -1.412205 0.05165670 5981 -27.33827       0
+    ## after.bust.length.d2 -1.309962 0.06622580 5981 -19.78023       0
     ##  Correlation: 
     ##                      (Intr) af...1
     ## after.bust.length.d1 -0.313       
-    ## after.bust.length.d2 -0.189  0.136
+    ## after.bust.length.d2 -0.190  0.149
     ## 
     ## Standardized Within-Group Residuals:
     ##        Min         Q1        Med         Q3        Max 
-    ## -2.5580060 -0.7269500 -0.1166661  0.6819554  2.9593279 
+    ## -2.5820039 -0.7246061 -0.1120516  0.6774496  2.9883877 
     ## 
-    ## Number of Observations: 6142
+    ## Number of Observations: 6494
     ## Number of Groups: 
     ##          team pid %in% team 
-    ##            91           495
+    ##            94           511
 
 > Burnout is slightly lower after a short (!) bust than after a long
 > bust.
