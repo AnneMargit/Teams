@@ -1,0 +1,206 @@
+---
+title: "During vs. after booms/busts"
+output: github_document
+---
+
+Comparing what happens during vs. after a boom/bust (stress, burnout)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(anomaly)
+library(tidyverse)
+library(skimr)
+library(nlme)
+library(ggplot2)
+library(effects)
+library(psych)
+```
+
+Load anomaly data 
+```{r, message = F, warning = F}
+load(file="d.an.Rdata")
+
+# Remove teams with no anomalies
+d.an <- d.an %>%
+  filter(!is.na(anomalies.count))
+```
+
+Stress during/after a boom
+Variable "after.boom.phase" is a dummy that is coded with 0= during a boom, and 1 = after a boom (first 4 measurements after a boom)
+```{r}
+# Likelihood check
+model_1r <- lme(fixed = s.em1 ~ s.pas + after.boom.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_1br <- lme(fixed = s.em1 ~ s.pas + s.pas*after.boom.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_1r, model_1br)
+
+## Second model is best (with interaction)
+
+# Interaction with boom 
+model_1b <- lme(fixed = s.em1 ~ s.pas + s.pas*after.boom.phase,
+                   random = ~1 | team, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_1b)
+```
+
+Plots for stress during/after boom:
+```{r}
+eff <- effect("s.pas:after.boom.phase", xlevels = list(after.boom.phase = c(0, 1)), model_1b)
+
+effdata <- as.data.frame(eff)
+
+effdata$after.boom.phase <- as.factor(effdata$after.boom.phase)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = after.boom.phase, group = after.boom.phase)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Stress", x= "Individual passion", y="Stress", color="During or after boom?", fill="During or after boom?") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("During boom", "After boom")) +   scale_color_discrete(labels = c("During boom", "After boom"))
+
+plot
+```
+
+Burnout
+```{r}
+# Likelihood check
+model_2r <- lme(fixed = s.b2 ~ s.pas + after.boom.phase ,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_2br <- lme(fixed = s.b2 ~ s.pas + after.boom.phase + s.pas*after.boom.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_2r, model_2br)
+
+## Second model with interaction is best
+
+## Predicting future burnout from previous passion + interaction with boom 
+model_2b <- lme(fixed = s.b2 ~ s.pas + after.boom.phase + s.pas*after.boom.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit)
+
+summary(model_2b)
+```
+
+> Higher individual passion predicts lower burnout next measurement (main effect). Burnout is lower following a boom (main effect). Relationship between passion and next-measurement burnout is less strong if this occurs following a boom (interaction). 
+
+Plots:
+```{r}
+eff <- effect("s.pas:after.boom.phase", xlevels = list(after.boom.phase = c(0, 1)), model_2b)
+
+effdata <- as.data.frame(eff)
+
+effdata$after.boom.phase <- as.factor(effdata$after.boom.phase)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = after.boom.phase, group = after.boom.phase)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Burnout", x= "Individual passion", y="Burnout", color="During or after boom?", fill="During or after boom?") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("During boom", "After boom")) +   scale_color_discrete(labels = c("During boom", "After boom"))
+
+plot
+```
+
+Stress during/after bust 
+```{r}
+# Likelihood check
+model_3r <- lme(fixed = s.em1 ~ s.pas + after.bust.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_3br <- lme(fixed = s.em1 ~ s.pas + after.bust.phase + s.pas*after.bust.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_3r, model_3br)
+
+## Second model is best
+
+## Predicting stress during/after bust 
+model_3b <- lme(fixed = s.em1 ~ s.pas + after.bust.phase + s.pas*after.bust.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_3b)
+```
+
+Plots:
+```{r}
+eff <- effect("s.pas:after.bust.phase", xlevels = list(after.bust.phase = c(0, 1)), model_3b)
+
+effdata <- as.data.frame(eff)
+
+effdata$after.bust.phase <- as.factor(effdata$after.bust.phase)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = after.bust.phase, group = after.bust.phase)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Stress", x= "Individual passion", y="Stress", color="During or after bust?", fill="During or after bust?") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("During bust", "After bust")) +   scale_color_discrete(labels = c("During bust", "After bust"))
+
+plot
+```
+
+Burnout during/after bust 
+```{r}
+# Likelihood check
+model_4r <- lme(fixed = s.b2 ~ s.pas + after.bust.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+model_4br <- lme(fixed = s.b2 ~ s.pas + after.bust.phase + s.pas*after.bust.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, method = "ML")
+
+anova(model_4r, model_4br)
+
+## Second model is best
+
+## Burnout during/after bust 
+model_4b <- lme(fixed = s.b2 ~ s.pas + after.bust.phase + s.pas*after.bust.phase,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_4b)
+```
+
+Plots:
+```{r}
+eff <- effect("s.pas:after.bust.phase", xlevels = list(after.bust.phase = c(0, 1)), model_4b)
+
+effdata <- as.data.frame(eff)
+
+effdata$after.bust.phase <- as.factor(effdata$after.bust.phase)
+
+plot <- ggplot(effdata, aes(x = s.pas, y = fit, color = after.bust.phase, group = after.bust.phase)) +
+  geom_point() +
+  geom_line(size = 1.2) + 
+  labs(title = "Burnout", x= "Individual passion", y="Burnout", color="During or after bust?", fill="During or after bust?") + theme_classic() + theme(text=element_text(size=12)) + 
+  scale_fill_discrete(labels = c("During bust", "After bust")) +   scale_color_discrete(labels = c("During bust", "After bust"))
+
+plot
+```

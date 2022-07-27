@@ -13,7 +13,12 @@ library(dplyr)
 library(anomaly)
 library(tidyverse)
 library(skimr)
+library(nlme)
+library(ggplot2)
+library(effects)
+library(psych)
 ```
+
 ```{r, message = F, warning = F}
 load(file="d.Rdata")
 ```
@@ -108,7 +113,7 @@ get.an <- function(x) {
         mutate(start = NaN, # set to NaN to distinguish it from unprocessed or working values
                end = NaN, 
                section = NaN,
-               mean.change = NaN) 
+               mean.change = NaN)
       
     } else if (nrow(res) > 0) { # If anomaly detected
       
@@ -134,7 +139,7 @@ get.an <- function(x) {
                end = NA, 
                section = NA,
                mean.change = NA, 
-               test.statistic = NA) 
+               test.statistic = NA)
     }
   }
   return(x)
@@ -142,6 +147,17 @@ get.an <- function(x) {
 
 anomalies <- get.an(df) %>% arrange(team)
 ```
+
+Calculate length of anomalies
+```{r}
+anomalies <- anomalies %>%
+  group_by(team, section) %>%
+  mutate(length = n())
+
+anomalies <- anomalies %>%
+  mutate(length = ifelse(section > 0, length, NA))
+```
+
 
 Calculate the mean passion score during each anomaly period: 
 ```{r}
@@ -206,6 +222,17 @@ anomalies.b <- anomalies2 %>%
   slice(1)%>%
   ungroup()
 
+# Average length of booms
+anomalies.b %>%
+  filter(section.bb == 2) %>%
+  summarise(mean.length = mean(length, na.rm=T),
+            sd.length = sd(length),
+            min.length = min(length),
+            max.length = max(length),
+            median.length = median(length))
+
+# Mean length = 4.33, median = 3
+
 table(anomalies.b$boom.count)
 skim(anomalies.b$boom.count)
 ```
@@ -213,9 +240,164 @@ skim(anomalies.b$boom.count)
 How many busts are there?
 ```{r}
 table(anomalies.b$bust.count)
+
+# Average length of busts
+anomalies.b %>%
+  filter(section.bb == 1) %>%
+  summarise(mean.length = mean(length, na.rm=T),
+            sd.length = sd(length),
+            min.length = min(length),
+            max.length = max(length),
+            median.length = median(length))
+
+# Mean = 3.88, median = 3
+
 skim(anomalies.b$bust.count)
 ```
 
 > On average, teams have 0.54 booms (anomaly period with higher passion than the rest of the study) and 1.20 busts (anomaly period with lower passion)
 
+Make two variables to indicate boom and bust instead of one
+```{r}
+anomalies.data <- anomalies %>%
+  mutate(boom = ifelse(section.bb == 2, 1, 0),
+         bust = ifelse(section.bb == 1, 1, 0))
+```
+
+Also make two variables to indicate the length of booms/busts
+```{r}
+anomalies.data <- anomalies.data %>%
+  mutate(length.boom = ifelse(section.bb == 2, length, NA),
+         length.bust = ifelse(section.bb == 1, length, NA))
+```
+
+And make dummy variables of these. Booms/busts can be between 3 and 9 measurements long. I recode length of 6 and higher as long (so 6,7,8 or 9) with 2, and below 6 as short (so 3, 4, or 5) with 1, periods with no booms/busts as 0
+```{r}
+anomalies.data <- anomalies.data %>%
+  mutate(length.boom.d = ifelse(length.boom < 6, 1,
+                                ifelse(length.boom > 5, 2, 0)),
+        length.bust.d = ifelse(length.bust < 6, 1,
+                               ifelse(length.bust > 5, 2, 0)))
+```
+
+Indicate with the columns after.boom.phase/after.bust.phase if the measurement is after a bust/boom 
+```{r}
+anomalies.data <- anomalies.data %>%
+  mutate(after.boom = ifelse(lag(boom) == 1 & lag(end)== 1, 1, 0),
+         after.boom2 = ifelse(lag(after.boom) == 1, 1, 0),
+         after.boom3 = ifelse(lag(after.boom2) == 1, 1, 0),
+         after.boom4 = ifelse(lag(after.boom3) == 1, 1, 0),
+         after.boom.phase = after.boom + after.boom2 + after.boom3 + after.boom4) %>%
+  select(-c(after.boom, after.boom2, after.boom3, after.boom4))
+
+anomalies.data <- anomalies.data %>%
+  mutate(after.bust = ifelse(lag(bust) == 1 & lag(end)== 1, 1, 0),
+         after.bust2 = ifelse(lag(after.bust) == 1, 1, 0),
+         after.bust3 = ifelse(lag(after.bust2) == 1, 1, 0),
+         after.bust4 = ifelse(lag(after.bust3) == 1, 1, 0),
+         after.bust.phase = after.bust + after.bust2 + after.bust3 + after.bust4) %>%
+  select(-c(after.bust, after.bust2, after.bust3, after.bust4))
+
+anomalies.data <- anomalies.data %>% 
+  mutate(after.boom.phase2 = ifelse(after.boom.phase == 1, 1, 
+                                    ifelse(boom == 1, 0, NA))) %>%
+  select(-c(after.boom.phase))
+
+anomalies.data <- anomalies.data %>% 
+  mutate(after.bust.phase2 = ifelse(after.bust.phase == 1, 1, 
+                                    ifelse(bust == 1, 0, NA))) %>%
+  select(-c(after.bust.phase))
+    
+anomalies.data <- anomalies.data %>% 
+  dplyr::rename(after.boom.phase = after.boom.phase2,
+                after.bust.phase = after.bust.phase2)
+
+
+
+```
+
+Create a dummy to indicate if the measurement is after a long or short boom/bust
+This is the column after.boom.length.d or after.bust.length.d (2 = after long one, 1 is after short one, 0 = during boom/bust)
+```{r}
+anomalies.data <- anomalies.data %>%
+  mutate(after.boom.d = ifelse(lag(length.boom.d) == 2 & lag(end) == 1, 2,
+                               ifelse(lag(length.boom.d) == 1 & lag(end) == 1, 1, 0)),
+         after.boom.d2 = ifelse(lag(after.boom.d) == 2, 2,
+                                ifelse(lag(after.boom.d) == 1, 1, 0)),
+         after.boom.d3 = ifelse(lag(after.boom.d2) == 2, 2,
+                                ifelse(lag(after.boom.d2) == 1, 1, 0)),
+         after.boom.d4 = ifelse(lag(after.boom.d3) == 2, 2,
+                                ifelse(lag(after.boom.d3) == 1, 1, 0)),
+         after.boom.length.d = after.boom.d + after.boom.d2 + after.boom.d3 + after.boom.d4) %>%
+  select(-c(after.boom.d, after.boom.d2, after.boom.d3, after.boom.d4))
+
+anomalies.data <- anomalies.data %>%
+  mutate(after.boom.length.d = ifelse(is.na(after.boom.phase), NA, after.boom.length.d))
+
+anomalies.data <- anomalies.data %>%
+  mutate(after.bust.d = ifelse(lag(length.bust.d) == 2 & lag(end) == 1, 2,
+                               ifelse(lag(length.bust.d) == 1 & lag(end) == 1, 1, 0)),
+         after.bust.d2 = ifelse(lag(after.bust.d) == 2, 2,
+                                ifelse(lag(after.bust.d) == 1, 1, 0)),
+         after.bust.d3 = ifelse(lag(after.bust.d2) == 2, 2,
+                                ifelse(lag(after.bust.d2) == 1, 1, 0)),
+         after.bust.d4 = ifelse(lag(after.bust.d3) == 2, 2,
+                                ifelse(lag(after.bust.d3) == 1, 1, 0)),
+         after.bust.length.d = after.bust.d + after.bust.d2 + after.bust.d3 + after.bust.d4) %>%
+  select(-c(after.bust.d, after.bust.d2, after.bust.d3, after.bust.d4))
+
+anomalies.data <- anomalies.data %>%
+  mutate(after.bust.length.d = ifelse(is.na(after.bust.phase), NA, after.bust.length.d))
+```
+
+Save
+```{r}
+save(anomalies.data, file = "anomalies.data.Rdata")
+```
+
+# Join with individual-level data
+```{r}
+d.an <- d %>%
+  left_join(anomalies.data, by = c("team", "m", "mean.pas"))
+
+# This makes that only the first measurement occassion of the bust/boom is coded  
+d.an.first <- d.an %>%
+  mutate(boom = ifelse(section.bb == 2 & start == 1, 1, 0),
+         bust = ifelse(section.bb == 1 & start == 1, 1, 0))
+
+# Replace na with zero
+d.an.first$boom[is.na(d.an.first$boom)] <- 0
+d.an.first$bust[is.na(d.an.first$bust)] <- 0
+d.an.first$length.boom[is.na(d.an.first$length.boom)] <- 0
+
+# This makes that only the last measurement occassion of the bust/boom is coded  
+d.an.last <- d.an %>%
+  mutate(boom = ifelse(section.bb == 2 & end == 1, 1, 0),
+         bust = ifelse(section.bb == 1 & end == 1, 1, 0))
+
+# Replace na with zero
+d.an.last$boom[is.na(d.an.last$boom)] <- 0
+d.an.last$bust[is.na(d.an.last$bust)] <- 0
+d.an.last$length.boom[is.na(d.an.last$length.boom)] <- 0
+d.an.last$length.bust[is.na(d.an.last$length.bust)] <- 0
+
+d.an.an <- d.an
+
+# Not replacing NAs with zeroes
+save(d.an.an, file = "d.an.an.Rdata")
+
+# Replace na with zero
+d.an$boom[is.na(d.an$boom)] <- 0
+d.an$bust[is.na(d.an$bust)] <- 0
+d.an$length.boom[is.na(d.an$length.boom)] <- 0
+d.an$length.bust[is.na(d.an$length.bust)] <- 0
+
+```
+
+Save
+```{r}
+save(d.an, file="d.an.Rdata")
+save(d.an.first, file = "d.an.first.Rdata")
+save(d.an.last, file = "d.an.last.Rdata")
+```
 

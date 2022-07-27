@@ -1,0 +1,84 @@
+---
+title: "Length of booms/busts"
+output: github_document
+---
+
+Comparing short and long booms/busts
+Booms/busts can be between 3 and 9 measurements long. I recoded length of 6 and higher as long (so 6,7,8 or 9) with 2, and below 6 as short (so 3, 4, or 5) with 1, periods with no booms/busts as 0 (variable = length.boom.d or length.bust.d)
+
+I created dummy variables to indicate whether the measurement occured after a long or short boom/bust. This is the column after.boom.length.d or after.bust.length.d (2 = after long one, 1 is after short one, 0 = during boom/bust)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F, warning = F}
+library(knitr)
+library(dplyr)
+library(anomaly)
+library(tidyverse)
+library(skimr)
+library(nlme)
+library(ggplot2)
+library(effects)
+library(psych)
+```
+
+Load anomaly data 
+```{r, message = F, warning = F}
+load(file="d.an.Rdata")
+
+# Remove teams with no anomalies
+d.an <- d.an %>%
+  filter(!is.na(anomalies.count))
+```
+
+Stress during/after a boom
+The column after.boom.length.d indicates the difference between a long and short boom (2 = after long boom, 1 is after short boom, 0 = during boom/bust) --> so this compares stress after a long/short boom vs. during
+```{r}
+d.an$after.boom.length.d <- as.factor(d.an$after.boom.length.d)
+
+model_1 <- lme(fixed = s.em1 ~ after.boom.length.d,
+                   random = ~1 | team, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_1)
+```
+> Stress is higher after a long boom than after a short boom 
+
+Burnout
+```{r}
+model_2 <- lme(fixed = s.b2 ~ after.boom.length.d,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit)
+
+summary(model_2)
+```
+
+> Burnout is higher after a long boom than after a short boom
+
+Stress during/after bust 
+```{r}
+d.an$after.bust.length.d <- as.factor(d.an$after.bust.length.d)
+
+model_3 <- lme(fixed = s.em1 ~ after.bust.length.d,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_3)
+```
+> Stress is slightly lower after a long bust than after a short bust. 
+
+Burnout during/after bust 
+```{r}
+model_4 <- lme(fixed = s.b2 ~ after.bust.length.d,
+                   random = ~1 | team/pid, 
+                   data = d.an, 
+                   na.action = na.omit, control = lmeControl(opt = "optim"))
+
+summary(model_4)
+```
+> Burnout is slightly lower after a short (!) bust than after a long bust.
